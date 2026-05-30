@@ -6,7 +6,7 @@ on:
       - main
 
 env:
-  PROJECT_ID: pika-scanpass
+  PROJECT_ID: focus-empire-483313-n6
   REGION: us-central1
   SERVICE: scanpass
 
