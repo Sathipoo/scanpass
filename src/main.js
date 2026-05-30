@@ -256,8 +256,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     navBtnDashboard.addEventListener('click', async () => await switchView('dashboard'));
     navBtnScanner.addEventListener('click', async () => await switchView('scanner'));
 
+    // Helper to prepopulate current date and time in local timezone
+    function setDefaultDateTime() {
+      const now = new Date();
+      const offsetMs = now.getTimezoneOffset() * 60 * 1000;
+      const localISOTime = new Date(now.getTime() - offsetMs).toISOString().slice(0, 16);
+      const input = document.getElementById('event-datetime-input');
+      if (input) {
+        input.value = localISOTime;
+      }
+    }
+
     // Populate events dropdown
     await populateEventsSelector();
+    setDefaultDateTime();
 
     // Event Selector Change
     const eventSelector = document.getElementById('event-selector');
@@ -310,6 +322,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       showToast(`Event "${newEvent.title}" created successfully!`, 'success');
       
       createEventForm.reset();
+      setDefaultDateTime();
       await populateEventsSelector(newEvent.eventId); // Select the newly created event
     });
 

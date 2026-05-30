@@ -74,12 +74,7 @@
               
               <button type="submit" id="btn-login-submit" class="btn btn-primary btn-block">Sign In</button>
             </form>
-            
-            <div class="login-footer">
-              <p>Demo credentials:</p>
-              <p>Admin: <code>admin</code> / <code>admin123</code></p>
-              <p>Staff: <code>staff1</code> / <code>staff123</code></p>
-            </div>
+
           </div>
         </div>
       </section>
@@ -129,13 +124,13 @@
                 <div class="form-group">
                   <input type="url" id="event-maps-input" placeholder="Google Maps URL (Optional)" class="form-control" />
                 </div>
-                <div class="form-group-split">
-                  <div class="form-group">
-                    <input type="datetime-local" id="event-datetime-input" class="form-control" required />
-                  </div>
-                  <div class="form-group">
-                    <input type="number" id="event-capacity-input" placeholder="Max Capacity" min="1" class="form-control" required />
-                  </div>
+                <div class="form-group">
+                  <label for="event-datetime-input">Event Date & Time</label>
+                  <input type="datetime-local" id="event-datetime-input" class="form-control" required />
+                </div>
+                <div class="form-group">
+                  <label for="event-capacity-input">Max Capacity</label>
+                  <input type="number" id="event-capacity-input" placeholder="Max Capacity" min="1" class="form-control" required />
                 </div>
                 <button type="submit" id="btn-create-event" class="btn btn-primary">Create Event</button>
               </form>
