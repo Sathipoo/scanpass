@@ -1,139 +1,185 @@
-// Database and Offline Synchronization Layer for ScanPass
+// Google Firebase Firestore Real-Time Database and Offline Persistence Layer for ScanPass
+import { initializeApp } from "firebase/app";
+import { 
+  initializeFirestore, 
+  persistentLocalCache, 
+  persistentMultipleTabManager,
+  collection, 
+  doc, 
+  setDoc, 
+  getDoc, 
+  getDocs, 
+  updateDoc, 
+  deleteDoc, 
+  query, 
+  where, 
+  orderBy,
+  enableNetwork,
+  disableNetwork
+} from "firebase/firestore";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBilx30C4SynYm2Dt3uJFxUVeN5f-oUzJQ",
+  authDomain: "pika-scanpass.firebaseapp.com",
+  projectId: "pika-scanpass",
+  storageBucket: "pika-scanpass.firebasestorage.app",
+  messagingSenderId: "848460415527",
+  appId: "1:848460415527:web:c7d83c80f1b22d45768402",
+  measurementId: "G-XJLRSSFMTW"
+};
+
+// Initialize Firebase App
+const app = initializeApp(firebaseConfig);
+
+// Initialize Firestore with persistent offline local cache
+const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({
+    tabManager: persistentMultipleTabManager()
+  })
+});
 
 const DB_KEYS = {
-  EVENTS: 'scanpass_events',
-  TICKETS: 'scanpass_tickets',
-  SCANS: 'scanpass_scans',
-  OFFLINE_QUEUE: 'scanpass_offline_queue',
   ONLINE_STATUS: 'scanpass_online_status',
   CURRENT_VENDOR: 'scanpass_current_vendor',
-  STAFF: 'scanpass_staff',
   SESSION: 'scanpass_session'
 };
 
-// Initialize database with mock data if empty
-export function initDb() {
-  if (!localStorage.getItem(DB_KEYS.EVENTS)) {
-    const mockEvents = [
-      {
-        eventId: 'EVT-001',
+// Initialize database with mock data if collections are empty
+export async function initDb() {
+  try {
+    // 1. Seed events collection
+    const eventsSnap = await getDocs(collection(db, 'events'));
+    if (eventsSnap.empty) {
+      const mockEvents = [
+        {
+          eventId: 'EVT-001',
+          vendorId: 'VND-101',
+          title: 'Sunset Beats Music Festival',
+          dateTime: '2026-06-15T18:00',
+          venue: 'Wavefront Beach Stage',
+          mapsUrl: 'https://maps.google.com/?q=Wavefront+Beach+Stage',
+          maxCapacity: 200,
+          createdAt: new Date().toISOString()
+        },
+        {
+          eventId: 'EVT-002',
+          vendorId: 'VND-101',
+          title: 'Design & Code Meetup v4.0',
+          dateTime: '2026-07-02T19:30',
+          venue: 'Antigravity Innovation Lab',
+          mapsUrl: 'https://maps.google.com/?q=Antigravity+Innovation+Lab',
+          maxCapacity: 50,
+          createdAt: new Date().toISOString()
+        }
+      ];
+      for (const e of mockEvents) {
+        await setDoc(doc(db, 'events', e.eventId), e);
+      }
+    }
+
+    // 2. Seed tickets collection
+    const ticketsSnap = await getDocs(collection(db, 'tickets'));
+    if (ticketsSnap.empty) {
+      const mockTickets = [
+        {
+          ticketId: 'TCK-sunset-single',
+          eventId: 'EVT-001',
+          holderName: 'Alex Rivers',
+          holderContact: '+1 555-0199',
+          totalGuests: 1,
+          checkedInCount: 0,
+          status: 'pending',
+          createdAt: new Date().toISOString()
+        },
+        {
+          ticketId: 'TCK-sunset-group',
+          eventId: 'EVT-001',
+          holderName: 'Sarah & Friends',
+          holderContact: '+1 555-0144',
+          totalGuests: 4,
+          checkedInCount: 1,
+          status: 'partial',
+          createdAt: new Date().toISOString()
+        },
+        {
+          ticketId: 'TCK-meetup-group',
+          eventId: 'EVT-002',
+          holderName: 'Google Dev Team',
+          holderContact: '+1 555-0188',
+          totalGuests: 5,
+          checkedInCount: 0,
+          status: 'pending',
+          createdAt: new Date().toISOString()
+        }
+      ];
+      for (const t of mockTickets) {
+        await setDoc(doc(db, 'tickets', t.ticketId), t);
+      }
+    }
+
+    // 3. Seed scans collection
+    const scansSnap = await getDocs(collection(db, 'scans'));
+    if (scansSnap.empty) {
+      const mockScans = [
+        {
+          scanId: 'SCN-1',
+          ticketId: 'TCK-sunset-group',
+          eventId: 'EVT-001',
+          admitted: 1,
+          timestamp: new Date(Date.now() - 3600000).toISOString(),
+          scannedBy: 'Staff-Alpha'
+        }
+      ];
+      for (const s of mockScans) {
+        await setDoc(doc(db, 'scans', s.scanId), s);
+      }
+    }
+
+    // 4. Seed staff collection
+    const staffSnap = await getDocs(collection(db, 'staff'));
+    if (staffSnap.empty) {
+      const defaultStaff = [
+        { username: 'staff1', password: 'staff123', createdAt: new Date().toISOString() }
+      ];
+      for (const st of defaultStaff) {
+        await setDoc(doc(db, 'staff', st.username.toLowerCase().trim()), st);
+      }
+    }
+
+    // Setup local configuration keys
+    if (localStorage.getItem(DB_KEYS.ONLINE_STATUS) === null) {
+      localStorage.setItem(DB_KEYS.ONLINE_STATUS, 'true');
+    }
+
+    if (!localStorage.getItem(DB_KEYS.CURRENT_VENDOR)) {
+      const defaultVendor = {
         vendorId: 'VND-101',
-        title: 'Sunset Beats Music Festival',
-        dateTime: '2026-06-15T18:00',
-        venue: 'Wavefront Beach Stage',
-        mapsUrl: 'https://maps.google.com/?q=Wavefront+Beach+Stage',
-        maxCapacity: 200,
-        createdAt: new Date().toISOString()
-      },
-      {
-        eventId: 'EVT-002',
-        vendorId: 'VND-101',
-        title: 'Design & Code Meetup v4.0',
-        dateTime: '2026-07-02T19:30',
-        venue: 'Antigravity Innovation Lab',
-        mapsUrl: 'https://maps.google.com/?q=Antigravity+Innovation+Lab',
-        maxCapacity: 50,
-        createdAt: new Date().toISOString()
-      }
-    ];
-    localStorage.setItem(DB_KEYS.EVENTS, JSON.stringify(mockEvents));
-  }
-
-  if (!localStorage.getItem(DB_KEYS.TICKETS)) {
-    const mockTickets = [
-      {
-        ticketId: 'TCK-sunset-single',
-        eventId: 'EVT-001',
-        holderName: 'Alex Rivers',
-        holderContact: '+1 555-0199',
-        totalGuests: 1,
-        checkedInCount: 0,
-        status: 'pending',
-        createdAt: new Date().toISOString()
-      },
-      {
-        ticketId: 'TCK-sunset-group',
-        eventId: 'EVT-001',
-        holderName: 'Sarah & Friends',
-        holderContact: '+1 555-0144',
-        totalGuests: 4,
-        checkedInCount: 1, // 1 already checked-in previously
-        status: 'partial',
-        createdAt: new Date().toISOString()
-      },
-      {
-        ticketId: 'TCK-meetup-group',
-        eventId: 'EVT-002',
-        holderName: 'Google Dev Team',
-        holderContact: '+1 555-0188',
-        totalGuests: 5,
-        checkedInCount: 0,
-        status: 'pending',
-        createdAt: new Date().toISOString()
-      }
-    ];
-    localStorage.setItem(DB_KEYS.TICKETS, JSON.stringify(mockTickets));
-  }
-
-  if (!localStorage.getItem(DB_KEYS.SCANS)) {
-    const mockScans = [
-      {
-        scanId: 'SCN-1',
-        ticketId: 'TCK-sunset-group',
-        eventId: 'EVT-001',
-        admitted: 1,
-        timestamp: new Date(Date.now() - 3600000).toISOString(), // 1 hour ago
-        scannedBy: 'Staff-Alpha',
-        isOffline: false
-      }
-    ];
-    localStorage.setItem(DB_KEYS.SCANS, JSON.stringify(mockScans));
-  }
-
-  if (!localStorage.getItem(DB_KEYS.OFFLINE_QUEUE)) {
-    localStorage.setItem(DB_KEYS.OFFLINE_QUEUE, JSON.stringify([]));
-  }
-
-  if (localStorage.getItem(DB_KEYS.ONLINE_STATUS) === null) {
-    localStorage.setItem(DB_KEYS.ONLINE_STATUS, 'true'); // Default to online
-  }
-
-  if (!localStorage.getItem(DB_KEYS.CURRENT_VENDOR)) {
-    const defaultVendor = {
-      vendorId: 'VND-101',
-      name: 'Vivid Events Corp',
-      email: 'hello@vividevents.com'
-    };
-    localStorage.setItem(DB_KEYS.CURRENT_VENDOR, JSON.stringify(defaultVendor));
-  }
-
-  if (!localStorage.getItem(DB_KEYS.STAFF)) {
-    const defaultStaff = [
-      { username: 'staff1', password: 'staff123', createdAt: new Date().toISOString() }
-    ];
-    localStorage.setItem(DB_KEYS.STAFF, JSON.stringify(defaultStaff));
+        name: 'Vivid Events Corp',
+        email: 'hello@vividevents.com'
+      };
+      localStorage.setItem(DB_KEYS.CURRENT_VENDOR, JSON.stringify(defaultVendor));
+    }
+  } catch (error) {
+    console.error("Failed to initialize database:", error);
   }
 }
 
-// Helper to retrieve parsed items from localStorage
-function getItems(key) {
-  const data = localStorage.getItem(key);
-  return data ? JSON.parse(data) : [];
-}
-
-// Helper to save items to localStorage
-function setItems(key, items) {
-  localStorage.setItem(key, JSON.stringify(items));
-}
-
-// Network Status Emulator
+// Network Status Emulator (integrated with Firestore network controller)
 export function isOnline() {
   return localStorage.getItem(DB_KEYS.ONLINE_STATUS) === 'true';
 }
 
-export function setOnlineStatus(status) {
+export async function setOnlineStatus(status) {
   localStorage.setItem(DB_KEYS.ONLINE_STATUS, status ? 'true' : 'false');
-  // Dispatch a custom event to notify components about connectivity changes
+  try {
+    if (status) {
+      await enableNetwork(db);
+    } else {
+      await disableNetwork(db);
+    }
+  } catch (err) {
+    console.warn("Firestore network status toggle error:", err);
+  }
   window.dispatchEvent(new CustomEvent('scanpass-network-changed', { detail: { online: status } }));
 }
 
@@ -147,15 +193,22 @@ export function saveCurrentVendor(vendor) {
 }
 
 // Event Management
-export function getEvents() {
-  return getItems(DB_KEYS.EVENTS);
+export async function getEvents() {
+  try {
+    const q = query(collection(db, 'events'), orderBy('createdAt', 'desc'));
+    const snap = await getDocs(q);
+    return snap.docs.map(doc => doc.data());
+  } catch (err) {
+    console.error("Failed to fetch events from Firestore:", err);
+    return [];
+  }
 }
 
-export function createEvent(title, venue, dateTime, maxCapacity, mapsUrl) {
-  const events = getEvents();
+export async function createEvent(title, venue, dateTime, maxCapacity, mapsUrl) {
   const vendor = getCurrentVendor();
+  const eventId = `EVT-${Math.floor(100000 + Math.random() * 900000)}`;
   const newEvent = {
-    eventId: `EVT-${Math.floor(100000 + Math.random() * 900000)}`,
+    eventId,
     vendorId: vendor ? vendor.vendorId : 'VND-TEMP',
     title,
     venue,
@@ -164,39 +217,58 @@ export function createEvent(title, venue, dateTime, maxCapacity, mapsUrl) {
     mapsUrl: mapsUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venue)}`,
     createdAt: new Date().toISOString()
   };
-  events.push(newEvent);
-  setItems(DB_KEYS.EVENTS, events);
+  await setDoc(doc(db, 'events', eventId), newEvent);
   return newEvent;
 }
 
-export function getEvent(eventId) {
-  return getEvents().find(e => e.eventId === eventId);
+export async function getEvent(eventId) {
+  if (!eventId) return null;
+  try {
+    const snap = await getDoc(doc(db, 'events', eventId));
+    return snap.exists() ? snap.data() : null;
+  } catch (err) {
+    console.error("Failed to fetch event:", err);
+    return null;
+  }
 }
 
-export function updateEventLocation(eventId, venue, mapsUrl) {
-  const events = getEvents();
-  const idx = events.findIndex(e => e.eventId === eventId);
-  if (idx === -1) return { success: false, message: 'Event not found.' };
-
-  events[idx].venue = venue;
-  events[idx].mapsUrl = mapsUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venue)}`;
-  setItems(DB_KEYS.EVENTS, events);
-  return { success: true, message: 'Event location details updated.', event: events[idx] };
+export async function updateEventLocation(eventId, venue, mapsUrl) {
+  const eventDocRef = doc(db, 'events', eventId);
+  const updates = {
+    venue,
+    mapsUrl: mapsUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venue)}`
+  };
+  await updateDoc(eventDocRef, updates);
+  const snap = await getDoc(eventDocRef);
+  return { success: true, message: 'Event location details updated.', event: snap.data() };
 }
 
 // Ticket Management
-export function getTickets() {
-  return getItems(DB_KEYS.TICKETS);
+export async function getTickets() {
+  try {
+    const snap = await getDocs(collection(db, 'tickets'));
+    return snap.docs.map(doc => doc.data());
+  } catch (err) {
+    console.error("Failed to fetch tickets:", err);
+    return [];
+  }
 }
 
-export function getTicket(ticketId) {
-  return getTickets().find(t => t.ticketId === ticketId);
+export async function getTicket(ticketId) {
+  if (!ticketId) return null;
+  try {
+    const snap = await getDoc(doc(db, 'tickets', ticketId));
+    return snap.exists() ? snap.data() : null;
+  } catch (err) {
+    console.error("Failed to fetch ticket:", err);
+    return null;
+  }
 }
 
-export function createTicket(eventId, holderName, holderContact, totalGuests) {
-  const tickets = getTickets();
+export async function createTicket(eventId, holderName, holderContact, totalGuests) {
+  const ticketId = `TCK-${Math.random().toString(36).substring(2, 10)}`;
   const newTicket = {
-    ticketId: `TCK-${Math.random().toString(36).substring(2, 10)}`,
+    ticketId,
     eventId,
     holderName,
     holderContact,
@@ -205,20 +277,27 @@ export function createTicket(eventId, holderName, holderContact, totalGuests) {
     status: 'pending',
     createdAt: new Date().toISOString()
   };
-  tickets.push(newTicket);
-  setItems(DB_KEYS.TICKETS, tickets);
+  await setDoc(doc(db, 'tickets', ticketId), newTicket);
   return newTicket;
 }
 
-export function getEventTickets(eventId) {
-  return getTickets().filter(t => t.eventId === eventId);
+export async function getEventTickets(eventId) {
+  if (!eventId) return [];
+  try {
+    const q = query(collection(db, 'tickets'), where('eventId', '==', eventId));
+    const snap = await getDocs(q);
+    return snap.docs.map(doc => doc.data());
+  } catch (err) {
+    console.error("Failed to fetch event tickets:", err);
+    return [];
+  }
 }
 
-export function getEventStats(eventId) {
-  const event = getEvent(eventId);
+export async function getEventStats(eventId) {
+  const event = await getEvent(eventId);
   if (!event) return { checkedIn: 0, capacity: 0, percentage: 0 };
   
-  const tickets = getEventTickets(eventId);
+  const tickets = await getEventTickets(eventId);
   const checkedIn = tickets.reduce((sum, t) => sum + (t.checkedInCount || 0), 0);
   
   return {
@@ -228,25 +307,17 @@ export function getEventStats(eventId) {
   };
 }
 
-// Check-in and Offline Queue Processing
-export function checkInTicket(ticketId, admitCount, staffId = 'Staff-Scanner') {
+// Check-in and Offline Queue Processing (automatically handled by Firestore offline cache)
+export async function checkInTicket(ticketId, admitCount, staffId = 'Staff-Scanner') {
   admitCount = parseInt(admitCount, 10) || 1;
-  const online = isOnline();
-
-  if (!online) {
-    // Queued check-in
-    return queueOfflineScan(ticketId, admitCount, staffId);
-  }
-
-  // Live Online Check-in
-  const tickets = getTickets();
-  const idx = tickets.findIndex(t => t.ticketId === ticketId);
+  const ticketDocRef = doc(db, 'tickets', ticketId);
+  const ticketSnap = await getDoc(ticketDocRef);
   
-  if (idx === -1) {
+  if (!ticketSnap.exists()) {
     return { success: false, message: 'Ticket not found.' };
   }
 
-  const ticket = tickets[idx];
+  const ticket = ticketSnap.data();
 
   if (ticket.status === 'invalidated') {
     return { success: false, message: 'This ticket has been invalidated and cannot be checked in.' };
@@ -261,25 +332,29 @@ export function checkInTicket(ticketId, admitCount, staffId = 'Staff-Scanner') {
     };
   }
 
-  // Update ticket entry
-  ticket.checkedInCount += admitCount;
-  ticket.status = ticket.checkedInCount === ticket.totalGuests ? 'completed' : 'partial';
-  tickets[idx] = ticket;
-  setItems(DB_KEYS.TICKETS, tickets);
+  const newCheckedInCount = ticket.checkedInCount + admitCount;
+  const newStatus = newCheckedInCount === ticket.totalGuests ? 'completed' : 'partial';
 
-  // Save scan details
-  const scans = getItems(DB_KEYS.SCANS);
+  // Update ticket document in Firestore
+  await updateDoc(ticketDocRef, {
+    checkedInCount: newCheckedInCount,
+    status: newStatus
+  });
+
+  // Save scan document
+  const scanId = `SCN-${Math.random().toString(36).substring(2, 10)}`;
   const newScan = {
-    scanId: `SCN-${Math.random().toString(36).substring(2, 10)}`,
+    scanId,
     ticketId,
     eventId: ticket.eventId,
     admitted: admitCount,
     timestamp: new Date().toISOString(),
-    scannedBy: staffId,
-    isOffline: false
+    scannedBy: staffId
   };
-  scans.push(newScan);
-  setItems(DB_KEYS.SCANS, scans);
+  await setDoc(doc(db, 'scans', scanId), newScan);
+
+  ticket.checkedInCount = newCheckedInCount;
+  ticket.status = newStatus;
 
   return { 
     success: true, 
@@ -288,178 +363,91 @@ export function checkInTicket(ticketId, admitCount, staffId = 'Staff-Scanner') {
   };
 }
 
-// Store scan locally in queue if offline
-function queueOfflineScan(ticketId, admitCount, staffId) {
-  const queue = getItems(DB_KEYS.OFFLINE_QUEUE);
-  
-  // Find local state first to ensure validation is as accurate as possible offline
-  const tickets = getTickets();
-  const ticket = tickets.find(t => t.ticketId === ticketId);
-  
-  if (!ticket) {
-    return { success: false, message: 'Ticket not found locally.' };
-  }
-
-  if (ticket.status === 'invalidated') {
-    return { success: false, message: 'Offline Scan Denied: This ticket is invalidated.' };
-  }
-
-  // Calculate pending scans in current queue for this ticket
-  const queuedAdmitted = queue
-    .filter(q => q.ticketId === ticketId)
-    .reduce((sum, q) => sum + q.admitted, 0);
-
-  const remaining = ticket.totalGuests - (ticket.checkedInCount + queuedAdmitted);
-
-  if (admitCount > remaining) {
-    return {
-      success: false,
-      message: `Offline Scan Denied: Only ${remaining} remaining (including pending offline queue entries).`
-    };
-  }
-
-  // Store in queue
-  const offlineItem = {
-    queueId: `QUE-${Math.random().toString(36).substring(2, 10)}`,
-    ticketId,
-    admitted: admitCount,
-    timestamp: new Date().toISOString(),
-    scannedBy: staffId
-  };
-  
-  queue.push(offlineItem);
-  setItems(DB_KEYS.OFFLINE_QUEUE, queue);
-
-  // Update in local database instantly so the scanner dashboard reflects offline scans immediately
-  const idx = tickets.findIndex(t => t.ticketId === ticketId);
-  tickets[idx].checkedInCount += admitCount;
-  tickets[idx].status = tickets[idx].checkedInCount === tickets[idx].totalGuests ? 'completed' : 'partial';
-  setItems(DB_KEYS.TICKETS, tickets);
-
-  // Store local scan log marked as offline
-  const scans = getItems(DB_KEYS.SCANS);
-  scans.push({
-    scanId: `SCN-OFF-${offlineItem.queueId}`,
-    ticketId,
-    eventId: ticket.eventId,
-    admitted: admitCount,
-    timestamp: offlineItem.timestamp,
-    scannedBy: staffId,
-    isOffline: true
-  });
-  setItems(DB_KEYS.SCANS, scans);
-
-  return {
-    success: true,
-    message: `Recorded offline: Checked-in ${admitCount} guest(s). Scans will sync once online.`,
-    isOffline: true,
-    ticket: tickets[idx]
-  };
-}
-
 export function getOfflineQueue() {
-  return getItems(DB_KEYS.OFFLINE_QUEUE);
+  // Firestore handles offline caching and queuing natively
+  return [];
 }
 
-// Synchronize queued scans once database connectivity is restored
 export function syncOfflineQueue() {
-  const queue = getItems(DB_KEYS.OFFLINE_QUEUE);
-  if (queue.length === 0) {
-    return { success: true, processed: 0, message: 'No offline scans to sync.' };
-  }
-
-  const results = {
-    success: [],
-    failed: []
-  };
-
-  // We loop through each queue element, verify them online
-  // In a real database client, this would perform a batch commit or transaction updates
-  const tickets = getTickets();
-  const scans = getItems(DB_KEYS.SCANS);
-
-  // Clean local offline markings and make them online
-  const updatedScans = scans.map(s => {
-    if (s.isOffline) {
-      return { ...s, isOffline: false };
-    }
-    return s;
-  });
-  setItems(DB_KEYS.SCANS, updatedScans);
-
-  // Clear queue
-  setItems(DB_KEYS.OFFLINE_QUEUE, []);
-
-  // Return success info
+  // Firestore handles synchronization automatically when network is re-established
   return {
     success: true,
-    processed: queue.length,
-    message: `Successfully synchronized ${queue.length} scan(s) with the cloud server.`
+    processed: 0,
+    message: 'Firebase Firestore synchronizes offline scans automatically.'
   };
 }
 
-// Clear simulated database
-export function clearDb() {
-  localStorage.removeItem(DB_KEYS.EVENTS);
-  localStorage.removeItem(DB_KEYS.TICKETS);
-  localStorage.removeItem(DB_KEYS.SCANS);
-  localStorage.removeItem(DB_KEYS.OFFLINE_QUEUE);
-  localStorage.removeItem(DB_KEYS.ONLINE_STATUS);
-  localStorage.removeItem(DB_KEYS.CURRENT_VENDOR);
-  localStorage.removeItem(DB_KEYS.STAFF);
-  localStorage.removeItem(DB_KEYS.SESSION);
-  initDb();
+// Clear simulated database collections in Firestore
+export async function clearDb() {
+  try {
+    const collections = ['events', 'tickets', 'scans', 'staff'];
+    for (const c of collections) {
+      const snap = await getDocs(collection(db, c));
+      const deletePromises = snap.docs.map(d => deleteDoc(d.ref));
+      await Promise.all(deletePromises);
+    }
+    await initDb();
+  } catch (err) {
+    console.error("Failed to clear cloud database:", err);
+  }
 }
 
-// =========================================================================
-// AUTHENTICATION AND SECURITY STAFF LAYERS
-// =========================================================================
-
-export function getStaffAccounts() {
-  return getItems(DB_KEYS.STAFF);
+// Authentication and Security Staff Accounts
+export async function getStaffAccounts() {
+  try {
+    const snap = await getDocs(collection(db, 'staff'));
+    return snap.docs.map(doc => doc.data());
+  } catch (err) {
+    console.error("Failed to fetch staff list:", err);
+    return [];
+  }
 }
 
-export function createStaffAccount(username, password) {
-  const staff = getStaffAccounts();
+export async function createStaffAccount(username, password) {
   const lowerUser = username.toLowerCase().trim();
 
   if (lowerUser === 'admin') {
     return { success: false, message: 'Cannot use reserved username "admin".' };
   }
 
-  if (staff.some(s => s.username.toLowerCase() === lowerUser)) {
+  const staffDocRef = doc(db, 'staff', lowerUser);
+  const staffSnap = await getDoc(staffDocRef);
+
+  if (staffSnap.exists()) {
     return { success: false, message: 'Username already exists.' };
   }
 
   const newStaff = {
     username: username.trim(),
-    password, // Stored as plain text for simulation simplicity
+    password,
     createdAt: new Date().toISOString()
   };
 
-  staff.push(newStaff);
-  setItems(DB_KEYS.STAFF, staff);
+  await setDoc(staffDocRef, newStaff);
   return { success: true, message: `Staff account "${username}" created.`, staff: newStaff };
 }
 
-export function authenticateUser(username, password) {
+export async function authenticateUser(username, password) {
   const user = username.toLowerCase().trim();
 
-  // 1. Admin login verification
+  // Admin login check
   if (user === 'admin' && password === 'admin123') {
     const session = { username: 'Admin', role: 'admin', loginTime: new Date().toISOString() };
     localStorage.setItem(DB_KEYS.SESSION, JSON.stringify(session));
     return { success: true, role: 'admin', session };
   }
 
-  // 2. Security staff login verification
-  const staff = getStaffAccounts();
-  const matched = staff.find(s => s.username.toLowerCase() === user && s.password === password);
+  // Security staff check
+  const staffDocRef = doc(db, 'staff', user);
+  const staffSnap = await getDoc(staffDocRef);
 
-  if (matched) {
-    const session = { username: matched.username, role: 'staff', loginTime: new Date().toISOString() };
-    localStorage.setItem(DB_KEYS.SESSION, JSON.stringify(session));
-    return { success: true, role: 'staff', session };
+  if (staffSnap.exists()) {
+    const matched = staffSnap.data();
+    if (matched.password === password) {
+      const session = { username: matched.username, role: 'staff', loginTime: new Date().toISOString() };
+      localStorage.setItem(DB_KEYS.SESSION, JSON.stringify(session));
+      return { success: true, role: 'staff', session };
+    }
   }
 
   return { success: false, message: 'Invalid username or password.' };
@@ -474,36 +462,46 @@ export function logoutSession() {
   localStorage.removeItem(DB_KEYS.SESSION);
 }
 
-export function resetTicketCheckIn(ticketId) {
-  const tickets = getTickets();
-  const idx = tickets.findIndex(t => t.ticketId === ticketId);
-  if (idx === -1) return { success: false, message: 'Ticket not found.' };
+// Reset ticket checkin logs
+export async function resetTicketCheckIn(ticketId) {
+  try {
+    const ticketDocRef = doc(db, 'tickets', ticketId);
+    await updateDoc(ticketDocRef, {
+      checkedInCount: 0,
+      status: 'pending'
+    });
 
-  tickets[idx].checkedInCount = 0;
-  tickets[idx].status = 'pending';
-  setItems(DB_KEYS.TICKETS, tickets);
+    // Remove scans associated with this ticket
+    const q = query(collection(db, 'scans'), where('ticketId', '==', ticketId));
+    const snap = await getDocs(q);
+    const deletePromises = snap.docs.map(d => deleteDoc(d.ref));
+    await Promise.all(deletePromises);
 
-  // Remove scan logs for this ticket
-  const scans = getItems(DB_KEYS.SCANS);
-  const remainingScans = scans.filter(s => s.ticketId !== ticketId);
-  setItems(DB_KEYS.SCANS, remainingScans);
-
-  return { success: true, message: 'Ticket check-in entries reset successfully.' };
+    return { success: true, message: 'Ticket check-in entries reset successfully.' };
+  } catch (err) {
+    console.error("Failed to reset ticket checks:", err);
+    return { success: false, message: 'Failed to reset ticket checks.' };
+  }
 }
 
-export function invalidateTicket(ticketId) {
-  const tickets = getTickets();
-  const idx = tickets.findIndex(t => t.ticketId === ticketId);
-  if (idx === -1) return { success: false, message: 'Ticket not found.' };
+// Invalidate ticket checkin logs
+export async function invalidateTicket(ticketId) {
+  try {
+    const ticketDocRef = doc(db, 'tickets', ticketId);
+    await updateDoc(ticketDocRef, {
+      checkedInCount: 0,
+      status: 'invalidated'
+    });
 
-  tickets[idx].status = 'invalidated';
-  tickets[idx].checkedInCount = 0;
-  setItems(DB_KEYS.TICKETS, tickets);
+    // Remove scans associated with this ticket
+    const q = query(collection(db, 'scans'), where('ticketId', '==', ticketId));
+    const snap = await getDocs(q);
+    const deletePromises = snap.docs.map(d => deleteDoc(d.ref));
+    await Promise.all(deletePromises);
 
-  // Remove scan logs for this ticket
-  const scans = getItems(DB_KEYS.SCANS);
-  const remainingScans = scans.filter(s => s.ticketId !== ticketId);
-  setItems(DB_KEYS.SCANS, remainingScans);
-
-  return { success: true, message: 'Ticket invalidated successfully.' };
+    return { success: true, message: 'Ticket invalidated successfully.' };
+  } catch (err) {
+    console.error("Failed to invalidate ticket:", err);
+    return { success: false, message: 'Failed to invalidate ticket.' };
+  }
 }

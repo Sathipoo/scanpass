@@ -1,4 +1,4 @@
-// ScanPass App Controller and Routing Logic
+// ScanPass App Controller and Routing Logic (Migrated to real-time Firebase Firestore)
 import { Html5Qrcode } from 'html5-qrcode';
 import QRCode from 'qrcode';
 import {
@@ -9,6 +9,7 @@ import {
   createEvent,
   getEvent,
   getTickets,
+  getTicket,
   createTicket,
   getEventTickets,
   getEventStats,
@@ -32,9 +33,9 @@ let currentLedgerSearchQuery = '';
 let currentLedgerFilter = 'all';
 
 // On DOM Loaded
-document.addEventListener('DOMContentLoaded', () => {
-  // Initialize simulated DB
-  initDb();
+document.addEventListener('DOMContentLoaded', async () => {
+  // Initialize Firebase DB and seed initial collections if empty
+  await initDb();
 
   // Register Service Worker for PWA
   if ('serviceWorker' in navigator) {
@@ -72,17 +73,16 @@ document.addEventListener('DOMContentLoaded', () => {
     headerNav.classList.add('hidden');
     
     // Switch to ticket view
-    switchView('ticket');
-    renderTicketPass(ticketIdParam);
-
+    await switchView('ticket');
+    await renderTicketPass(ticketIdParam);
 
   } else {
     // Session check for console routing
     const session = getCurrentSession();
     if (session) {
-      handleSessionLogin(session);
+      await handleSessionLogin(session);
     } else {
-      switchView('login');
+      await switchView('login');
     }
   }
 
@@ -90,15 +90,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const loginForm = document.getElementById('login-form');
   const loginErrorMsg = document.getElementById('login-error-msg');
   if (loginForm) {
-    loginForm.addEventListener('submit', (e) => {
+    loginForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const user = document.getElementById('login-username').value;
       const pass = document.getElementById('login-password').value;
-      const res = authenticateUser(user, pass);
+      const res = await authenticateUser(user, pass);
       if (res.success) {
         loginErrorMsg.classList.add('hidden');
         loginForm.reset();
-        handleSessionLogin(res.session);
+        await handleSessionLogin(res.session);
         showToast(`Signed in as ${res.session.username}`, 'success');
       } else {
         loginErrorMsg.textContent = res.message;
@@ -110,19 +110,19 @@ document.addEventListener('DOMContentLoaded', () => {
   // Wire up Logout Button
   const logoutBtn = document.getElementById('nav-btn-logout');
   if (logoutBtn) {
-    logoutBtn.addEventListener('click', () => {
+    logoutBtn.addEventListener('click', async () => {
       logoutSession();
       headerNav.classList.add('hidden');
       // Reset navigation link visibility
       navBtnDashboard.style.display = 'block';
       navBtnScanner.style.display = 'block';
       stopCameraScanner();
-      switchView('login');
+      await switchView('login');
       showToast('Logged out successfully.', 'success');
     });
   }
 
-  function handleSessionLogin(session) {
+  async function handleSessionLogin(session) {
     // Show navigation container
     headerNav.classList.remove('hidden');
     
@@ -131,20 +131,20 @@ document.addEventListener('DOMContentLoaded', () => {
       navBtnDashboard.style.display = 'block';
       navBtnScanner.style.display = 'none'; // Admin cannot perform QR scans
       
-      switchView('dashboard');
-      initConsole(); // Set up standard event/ticket creation
-      initAdminConsole(); // Set up staff management panels
+      await switchView('dashboard');
+      await initConsole(); // Set up standard event/ticket creation
+      await initAdminConsole(); // Set up staff management panels
     } else if (session.role === 'staff') {
       navBtnDashboard.style.display = 'none'; // Staff cannot access ledger
       navBtnScanner.style.display = 'block';
       
-      switchView('scanner'); // Direct staff to the QR scanner
+      await switchView('scanner'); // Direct staff to the QR scanner
       initStaffConsole();
     }
   }
 
   // Switch View Helper
-  function switchView(viewName) {
+  async function switchView(viewName) {
     // Stop scanner if leaving the scanner view
     if (viewName !== 'scanner') {
       stopCameraScanner();
@@ -164,7 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } else if (viewName === 'dashboard') {
       viewDashboard.classList.add('active-view');
       navBtnDashboard.classList.add('active');
-      refreshDashboard();
+      await refreshDashboard();
     } else if (viewName === 'scanner') {
       viewScanner.classList.add('active-view');
       navBtnScanner.classList.add('active');
@@ -175,13 +175,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // 2. CONNECTIVITY SWITCH EMULATOR
-  // Set initial slider state
   networkToggle.checked = isOnline();
   updateNetworkBadgeUI(isOnline());
 
-  networkToggle.addEventListener('change', (e) => {
+  networkToggle.addEventListener('change', async (e) => {
     const online = e.target.checked;
-    setOnlineStatus(online);
+    await setOnlineStatus(online);
   });
 
   // Listen to network change custom events
@@ -190,11 +189,10 @@ document.addEventListener('DOMContentLoaded', () => {
     updateNetworkBadgeUI(online);
     
     if (online) {
-      showToast('⚡ Internet connection restored.', 'success');
-      // Trigger sync automatic
+      showToast('⚡ Firestore network connection restored.', 'success');
       triggerSyncProcess();
     } else {
-      showToast('⚠️ App in offline mode. Scan entries will be queued locally.', 'warning');
+      showToast('⚠️ App in offline mode. Scan writes will be queued in persistent local cache.', 'warning');
     }
   });
 
@@ -241,30 +239,29 @@ document.addEventListener('DOMContentLoaded', () => {
     const queue = getOfflineQueue();
     if (queue.length === 0) return;
 
-    showToast(`Syncing ${queue.length} scan(s)...`, 'warning');
+    showToast(`Syncing offline scans...`, 'warning');
     
-    // Call database sync
     const res = syncOfflineQueue();
     if (res.success) {
-      setTimeout(() => {
+      setTimeout(async () => {
         showToast(res.message, 'success');
-        refreshDashboard();
+        await refreshDashboard();
       }, 1000);
     }
   }
 
   // 4. VENDOR CONSOLE INITIALIZATION
-  function initConsole() {
+  async function initConsole() {
     // Nav links binding
-    navBtnDashboard.addEventListener('click', () => switchView('dashboard'));
-    navBtnScanner.addEventListener('click', () => switchView('scanner'));
+    navBtnDashboard.addEventListener('click', async () => await switchView('dashboard'));
+    navBtnScanner.addEventListener('click', async () => await switchView('scanner'));
 
     // Populate events dropdown
-    populateEventsSelector();
+    await populateEventsSelector();
 
     // Event Selector Change
     const eventSelector = document.getElementById('event-selector');
-    eventSelector.addEventListener('change', (e) => {
+    eventSelector.addEventListener('change', async (e) => {
       currentActiveEventId = e.target.value;
       // Reset search/filter when changing event
       currentLedgerSearchQuery = '';
@@ -276,32 +273,32 @@ document.addEventListener('DOMContentLoaded', () => {
         t.classList.remove('active');
         if (t.getAttribute('data-filter') === 'all') t.classList.add('active');
       });
-      refreshDashboard();
+      await refreshDashboard();
     });
 
     // Search input handler
     const searchInput = document.getElementById('ledger-search-input');
     if (searchInput) {
-      searchInput.addEventListener('input', (e) => {
+      searchInput.addEventListener('input', async (e) => {
         currentLedgerSearchQuery = e.target.value;
-        renderTicketsLedger();
+        await renderTicketsLedger();
       });
     }
 
     // Filter tab handlers
     const filterTabs = document.querySelectorAll('.filter-tab');
     filterTabs.forEach(tab => {
-      tab.addEventListener('click', (e) => {
+      tab.addEventListener('click', async (e) => {
         filterTabs.forEach(t => t.classList.remove('active'));
         e.target.classList.add('active');
         currentLedgerFilter = e.target.getAttribute('data-filter');
-        renderTicketsLedger();
+        await renderTicketsLedger();
       });
     });
 
     // Create Event Form Submission
     const createEventForm = document.getElementById('create-event-form');
-    createEventForm.addEventListener('submit', (e) => {
+    createEventForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const title = document.getElementById('event-title-input').value;
       const venue = document.getElementById('event-venue-input').value;
@@ -309,17 +306,17 @@ document.addEventListener('DOMContentLoaded', () => {
       const capacity = document.getElementById('event-capacity-input').value;
       const mapsUrl = document.getElementById('event-maps-input').value;
 
-      const newEvent = createEvent(title, venue, dateTime, capacity, mapsUrl);
+      const newEvent = await createEvent(title, venue, dateTime, capacity, mapsUrl);
       showToast(`Event "${newEvent.title}" created successfully!`, 'success');
       
       createEventForm.reset();
-      populateEventsSelector(newEvent.eventId); // Select the newly created event
+      await populateEventsSelector(newEvent.eventId); // Select the newly created event
     });
 
     // Update Event Location Form Submission
     const updateLocationForm = document.getElementById('update-event-location-form');
     if (updateLocationForm) {
-      updateLocationForm.addEventListener('submit', (e) => {
+      updateLocationForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         if (!currentActiveEventId) {
           showToast('No active event selected.', 'error');
@@ -328,10 +325,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const venue = document.getElementById('update-event-venue-input').value;
         const mapsUrl = document.getElementById('update-event-maps-input').value;
 
-        const res = updateEventLocation(currentActiveEventId, venue, mapsUrl);
+        const res = await updateEventLocation(currentActiveEventId, venue, mapsUrl);
         if (res.success) {
           showToast(res.message, 'success');
-          populateEventsSelector(currentActiveEventId);
+          await populateEventsSelector(currentActiveEventId);
         } else {
           showToast(res.message, 'error');
         }
@@ -352,7 +349,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Issue Ticket Form Submission
     const issueTicketForm = document.getElementById('issue-ticket-form');
-    issueTicketForm.addEventListener('submit', (e) => {
+    issueTicketForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       if (!currentActiveEventId) {
         showToast('Please select or create an event first.', 'error');
@@ -364,10 +361,10 @@ document.addEventListener('DOMContentLoaded', () => {
       const guests = parseInt(ticketGuestsInput.value, 10) || 1;
 
       // Check capacity remaining
-      const event = getEvent(currentActiveEventId);
-      const tickets = getEventTickets(currentActiveEventId);
+      const event = await getEvent(currentActiveEventId);
+      const tickets = await getEventTickets(currentActiveEventId);
       const activeTickets = tickets.filter(t => t.status !== 'invalidated');
-      const totalGuestsIssued = activeTickets.reduce((sum, t) => sum + t.totalGuests, 0);
+      const totalGuestsIssued = activeTickets.reduce((sum, t) => sum + (t.totalGuests || 0), 0);
       const remainingToIssue = Math.max(0, event.maxCapacity - totalGuestsIssued);
 
       if (guests > remainingToIssue) {
@@ -375,18 +372,18 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      const newTicket = createTicket(currentActiveEventId, holderName, contact, guests);
+      const newTicket = await createTicket(currentActiveEventId, holderName, contact, guests);
       showToast(`Ticket generated for ${newTicket.holderName}!`, 'success');
       
       issueTicketForm.reset();
       ticketGuestsInput.value = 1;
-      refreshDashboard();
+      await refreshDashboard();
     });
   }
 
-  function populateEventsSelector(selectEventId = null) {
+  async function populateEventsSelector(selectEventId = null) {
     const eventSelector = document.getElementById('event-selector');
-    const events = getEvents();
+    const events = await getEvents();
     
     eventSelector.innerHTML = '';
     
@@ -396,7 +393,7 @@ document.addEventListener('DOMContentLoaded', () => {
       opt.value = '';
       eventSelector.appendChild(opt);
       currentActiveEventId = null;
-      refreshDashboard();
+      await refreshDashboard();
       return;
     }
 
@@ -416,14 +413,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     currentActiveEventId = eventSelector.value;
-    refreshDashboard();
+    await refreshDashboard();
   }
 
   // 5. REFRESH DASHBOARD DETAILS
-  function refreshDashboard() {
+  async function refreshDashboard() {
     // Self-healing: if currentActiveEventId is null or empty, try to auto-select the first available event
     if (!currentActiveEventId) {
-      const events = getEvents();
+      const events = await getEvents();
       if (events.length > 0) {
         currentActiveEventId = events[0].eventId;
         const selector = document.getElementById('event-selector');
@@ -464,15 +461,15 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    let event = getEvent(currentActiveEventId);
+    let event = await getEvent(currentActiveEventId);
     if (!event) {
       // Self-healing fallback: if event was deleted/not found, select first available
-      const events = getEvents();
+      const events = await getEvents();
       if (events.length > 0) {
         currentActiveEventId = events[0].eventId;
         const selector = document.getElementById('event-selector');
         if (selector) selector.value = currentActiveEventId;
-        event = getEvent(currentActiveEventId);
+        event = await getEvent(currentActiveEventId);
       }
     }
 
@@ -511,7 +508,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('stats-event-date').textContent = dateStr;
 
     // Compute and draw progress
-    const stats = getEventStats(currentActiveEventId);
+    const stats = await getEventStats(currentActiveEventId);
     
     const checkedInEl = document.getElementById('stats-checked-in-count');
     const capacityEl = document.getElementById('stats-capacity-count');
@@ -532,7 +529,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Update available to issue spots
-    const tickets = getEventTickets(currentActiveEventId);
+    const tickets = await getEventTickets(currentActiveEventId);
     const activeTickets = tickets.filter(t => t.status !== 'invalidated');
     const totalGuestsIssued = activeTickets.reduce((sum, t) => sum + (t.totalGuests || 0), 0);
     const maxCapacity = parseInt(event.maxCapacity, 10) || 100;
@@ -551,7 +548,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Render Tickets Ledger List
-    renderTicketsLedger();
+    await renderTicketsLedger();
 
     // Manage Offline queue banner
     const offlineQueue = getOfflineQueue();
@@ -567,10 +564,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  function renderTicketsLedger() {
+  async function renderTicketsLedger() {
     const tableBody = document.getElementById('tickets-table-body');
     const placeholder = document.getElementById('no-tickets-placeholder');
-    let tickets = getEventTickets(currentActiveEventId);
+    let tickets = await getEventTickets(currentActiveEventId);
 
     // Apply active filter
     if (currentLedgerFilter !== 'all') {
@@ -591,7 +588,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (tickets.length === 0) {
       placeholder.style.display = 'flex';
-      const totalEventTickets = getEventTickets(currentActiveEventId);
+      const totalEventTickets = await getEventTickets(currentActiveEventId);
       const placeholderText = placeholder.querySelector('p');
       if (placeholderText) {
         if (totalEventTickets.length > 0) {
@@ -684,9 +681,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     tableBody.querySelectorAll('.btn-simulate-scan').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', async (e) => {
         const id = e.currentTarget.getAttribute('data-id');
-        switchView('scanner');
+        await switchView('scanner');
         document.getElementById('manual-ticket-id-input').value = id;
         showToast('Ticket ID loaded in scanner manually. Hit "Admit" to check-in.', 'success');
       });
@@ -694,12 +691,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (isAdmin) {
       tableBody.querySelectorAll('.btn-reset-checkin').forEach(btn => {
-        btn.addEventListener('click', (e) => {
+        btn.addEventListener('click', async (e) => {
           const id = e.currentTarget.getAttribute('data-id');
-          const res = resetTicketCheckIn(id);
+          const res = await resetTicketCheckIn(id);
           if (res.success) {
             showToast(res.message, 'success');
-            refreshDashboard();
+            await refreshDashboard();
           } else {
             showToast(res.message, 'error');
           }
@@ -707,13 +704,13 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       tableBody.querySelectorAll('.btn-invalidate-ticket').forEach(btn => {
-        btn.addEventListener('click', (e) => {
+        btn.addEventListener('click', async (e) => {
           const id = e.currentTarget.getAttribute('data-id');
           if (confirm('Are you sure you want to invalidate this ticket? This will deny venue entrance for this holder.')) {
-            const res = invalidateTicket(id);
+            const res = await invalidateTicket(id);
             if (res.success) {
               showToast(res.message, 'success');
-              refreshDashboard();
+              await refreshDashboard();
             } else {
               showToast(res.message, 'error');
             }
@@ -724,10 +721,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // 6. CUSTOMER TICKET PASS VIEW RENDER
-  function renderTicketPass(id) {
-    const ticket = getEvent(id); // Search database directly
-    const tickets = getTickets();
-    const t = tickets.find(x => x.ticketId === id);
+  async function renderTicketPass(id) {
+    const t = await getTicket(id);
 
     if (!t) {
       document.getElementById('ticket-event-title').textContent = 'Ticket Invalid';
@@ -741,23 +736,25 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    const event = getEvent(t.eventId);
+    const event = await getEvent(t.eventId);
 
     // Populate attendee card UI
-    document.getElementById('ticket-event-title').textContent = event.title;
+    document.getElementById('ticket-event-title').textContent = event ? event.title : 'Event details missing';
     
     const venueText = document.getElementById('ticket-event-venue');
-    if (venueText) venueText.textContent = event.venue;
+    if (venueText && event) venueText.textContent = event.venue;
 
     const venueLink = document.getElementById('ticket-event-venue-link');
-    if (venueLink) {
+    if (venueLink && event) {
       venueLink.href = event.mapsUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.venue)}`;
     }
     
-    const d = new Date(event.dateTime);
-    document.getElementById('ticket-event-datetime').textContent = d.toLocaleString(undefined, {
-      weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-    });
+    if (event) {
+      const d = new Date(event.dateTime);
+      document.getElementById('ticket-event-datetime').textContent = d.toLocaleString(undefined, {
+        weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+      });
+    }
 
     document.getElementById('ticket-holder-name-val').textContent = t.holderName;
     document.getElementById('ticket-guests-val').textContent = t.totalGuests === 1 ? 'Single Admission' : `Group Pass (${t.totalGuests} Guests)`;
@@ -811,10 +808,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const admitGuestsInput = document.getElementById('admit-guests-input');
   let currentScannedTicket = null;
 
-  btnManualScan.addEventListener('click', () => {
+  btnManualScan.addEventListener('click', async () => {
     const val = manualScanInput.value.trim();
     if (val) {
-      openValidationModal(val);
+      await openValidationModal(val);
       manualScanInput.value = '';
     } else {
       showToast('Please type or paste a valid Ticket ID.', 'error');
@@ -836,13 +833,13 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Confirm Entry Gate scan
-  document.getElementById('btn-confirm-admission').addEventListener('click', () => {
+  document.getElementById('btn-confirm-admission').addEventListener('click', async () => {
     if (!currentScannedTicket) return;
 
     const count = parseInt(admitGuestsInput.value, 10) || 1;
     const session = getCurrentSession();
     const staffId = session ? session.username : 'Staff-Scanner';
-    const res = checkInTicket(currentScannedTicket.ticketId, count, staffId);
+    const res = await checkInTicket(currentScannedTicket.ticketId, count, staffId);
 
     if (res.success) {
       // Play a visual transition success state
@@ -855,11 +852,8 @@ document.addEventListener('DOMContentLoaded', () => {
       statusHeader.className = 'modal-status-header success';
       statusTitle.textContent = 'Access Admitted';
       
-      document.getElementById('modal-success-msg').textContent = res.isOffline 
-        ? `Offline scan recorded! Queued ${count} guest(s).` 
-        : `Successfully checked-in ${count} guest(s)!`;
-
-      showToast(res.message, res.isOffline ? 'warning' : 'success');
+      document.getElementById('modal-success-msg').textContent = `Successfully checked-in ${count} guest(s)!`;
+      showToast(res.message, 'success');
       
       // Update our temporary local object
       currentScannedTicket = res.ticket;
@@ -874,7 +868,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Close success scan next
   document.getElementById('btn-close-success').addEventListener('click', hideValidationModal);
 
-  function openValidationModal(id) {
+  async function openValidationModal(id) {
     // Normalize if scanned URL
     let ticketId = id;
     try {
@@ -887,7 +881,7 @@ document.addEventListener('DOMContentLoaded', () => {
       console.warn('Scanned data was not a valid URL, treating as raw ID');
     }
 
-    const t = getTickets().find(x => x.ticketId === ticketId);
+    const t = await getTicket(ticketId);
     validationModal.classList.add('show');
     
     // Clear screens
@@ -911,7 +905,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // Hide entry widgets
       document.getElementById('modal-admission-form-wrapper').classList.add('hidden');
       document.getElementById('modal-success-screen').classList.remove('hidden');
-      document.getElementById('modal-success-msg').textContent = 'This ticket identifier was not found in the local registry database.';
+      document.getElementById('modal-success-msg').textContent = 'This ticket identifier was not found in the cloud registry database.';
       document.getElementById('btn-close-success').textContent = 'Scan Again';
       currentScannedTicket = null;
       return;
@@ -923,7 +917,7 @@ document.addEventListener('DOMContentLoaded', () => {
       statusIcon.textContent = '✕';
       statusTitle.textContent = 'Ticket Invalidated';
       
-      const event = getEvent(t.eventId);
+      const event = await getEvent(t.eventId);
       document.getElementById('modal-holder-name').textContent = t.holderName;
       document.getElementById('modal-event-title').textContent = event ? event.title : 'Unknown Event';
       document.getElementById('modal-checkin-ratio').textContent = `Revoked (0 of ${t.totalGuests})`;
@@ -941,7 +935,7 @@ document.addEventListener('DOMContentLoaded', () => {
     currentScannedTicket = t;
 
     // Fill details
-    const event = getEvent(t.eventId);
+    const event = await getEvent(t.eventId);
     document.getElementById('modal-holder-name').textContent = t.holderName;
     document.getElementById('modal-event-title').textContent = event ? event.title : 'Unknown Event';
     document.getElementById('modal-checkin-ratio').textContent = `${t.checkedInCount} of ${t.totalGuests} Admitted`;
@@ -1006,7 +1000,7 @@ document.addEventListener('DOMContentLoaded', () => {
     qrScannerInstance.start(
       { facingMode: 'environment' }, // Rear camera
       config,
-      (decodedText) => {
+      async (decodedText) => {
         // Successfully read QR
         // Stop/pause scanner instantly to prevent double-reads while modal loads
         pauseCameraScanner();
@@ -1015,7 +1009,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (navigator.vibrate) navigator.vibrate(100);
 
         // Open validation dialog
-        openValidationModal(decodedText);
+        await openValidationModal(decodedText);
       },
       (scanError) => {
         // Silently capture scan failures/searching frames
@@ -1065,21 +1059,21 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // 9. STAFF AND SECURITY ADMINISTRATIVE GATEWAYS
-  function initAdminConsole() {
-    renderStaffList();
+  async function initAdminConsole() {
+    await renderStaffList();
     
     const createStaffForm = document.getElementById('create-staff-form');
     if (createStaffForm && !createStaffForm.dataset.listener) {
       createStaffForm.dataset.listener = 'true';
-      createStaffForm.addEventListener('submit', (e) => {
+      createStaffForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const user = document.getElementById('staff-username-input').value;
         const pass = document.getElementById('staff-password-input').value;
-        const res = createStaffAccount(user, pass);
+        const res = await createStaffAccount(user, pass);
         if (res.success) {
           showToast(res.message, 'success');
           createStaffForm.reset();
-          renderStaffList();
+          await renderStaffList();
         } else {
           showToast(res.message, 'error');
         }
@@ -1087,10 +1081,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  function renderStaffList() {
+  async function renderStaffList() {
     const staffListEl = document.getElementById('staff-list');
     if (!staffListEl) return;
-    const accounts = getStaffAccounts();
+    const accounts = await getStaffAccounts();
     staffListEl.innerHTML = '';
     
     if (accounts.length === 0) {
