@@ -34,9 +34,6 @@ let currentLedgerFilter = 'all';
 
 // On DOM Loaded
 document.addEventListener('DOMContentLoaded', async () => {
-  // Initialize Firebase DB and seed initial collections if empty
-  await initDb();
-
   // Register Service Worker for PWA
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').then((reg) => {
@@ -77,6 +74,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     await renderTicketPass(ticketIdParam);
 
   } else {
+    // Initialize DB non-blockingly for console and staff logins
+    initDb().catch(err => console.warn('Database initialization warning:', err));
+
     // Session check for console routing
     const session = getCurrentSession();
     if (session) {
