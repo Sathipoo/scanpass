@@ -1,0 +1,450 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#6366f1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="ScanPass - Real-time e-Ticket verification and scanning app with offline PWA synchronization." />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>ScanPass | QR Ticket Check-In</title>
+    <!-- Google Fonts for Modern Styling -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <!-- Top Global App Header -->
+    <header class="app-header" id="global-header">
+      <div class="header-brand">
+        <span class="logo-icon">⚡</span>
+        <span class="logo-text">ScanPass</span>
+      </div>
+
+      <!-- Real-time Connectivity Controller -->
+      <div class="network-badge-container">
+        <label class="switch-container" title="Simulate Network State">
+          <span class="switch-label">Simulate Network:</span>
+          <div class="switch-wrapper">
+            <input type="checkbox" id="network-toggle-checkbox" checked />
+            <span class="switch-slider"></span>
+          </div>
+        </label>
+        <div id="network-status-badge" class="network-badge status-online">
+          <span class="badge-dot"></span>
+          <span id="network-status-text">Online</span>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs (Dynamically visible based on role) -->
+      <nav class="header-nav hidden" id="app-navigation">
+        <button id="nav-btn-dashboard" class="nav-link active">Dashboard</button>
+        <button id="nav-btn-scanner" class="nav-link">QR Scanner</button>
+        <button id="nav-btn-logout" class="nav-link text-danger">Logout</button>
+      </nav>
+    </header>
+
+    <!-- Main Container where views are loaded dynamically -->
+    <main id="app" class="main-container">
+      
+      <!-- VIEW 0: PORTAL LOGIN -->
+      <section id="view-login" class="app-view">
+        <div class="login-container">
+          <div class="glass-card login-card">
+            <div class="login-header">
+              <span class="login-brand-icon">⚡</span>
+              <h1 class="login-title">ScanPass Portal</h1>
+              <p class="login-subtitle">Sign in to manage events or scan ticket entries.</p>
+            </div>
+            
+            <form id="login-form" class="form-stack">
+              <div class="form-group">
+                <label for="login-username">Username</label>
+                <input type="text" id="login-username" placeholder="Enter username (e.g. admin)" class="form-control" required autocomplete="username" />
+              </div>
+              <div class="form-group">
+                <label for="login-password">Password</label>
+                <input type="password" id="login-password" placeholder="••••••••" class="form-control" required autocomplete="current-password" />
+              </div>
+              
+              <div id="login-error-msg" class="login-error hidden">
+                Invalid credentials. Please try again.
+              </div>
+              
+              <button type="submit" id="btn-login-submit" class="btn btn-primary btn-block">Sign In</button>
+            </form>
+            
+            <div class="login-footer">
+              <p>Demo credentials:</p>
+              <p>Admin: <code>admin</code> / <code>admin123</code></p>
+              <p>Staff: <code>staff1</code> / <code>staff123</code></p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 1: VENDOR DASHBOARD -->
+      <section id="view-dashboard" class="app-view">
+        <div class="dashboard-grid">
+          
+          <!-- LEFT SIDE: Event and Ticket Management -->
+          <div class="dashboard-sidebar">
+            <!-- Event Selection / Creation Card -->
+            <div class="glass-card">
+              <h2 class="card-title">Events Management</h2>
+              
+              <!-- Active Event Dropdown -->
+              <div class="form-group">
+                <label for="event-selector">Select Active Event</label>
+                <select id="event-selector" class="form-control">
+                  <!-- Dynamically populated -->
+                </select>
+              </div>
+
+              <!-- Edit Event Location Details Form -->
+              <form id="update-event-location-form" class="form-stack hidden" style="margin-top: 1rem; border-top: 1px solid var(--card-border); padding-top: 1rem;">
+                <div class="form-group">
+                  <label for="update-event-venue-input">Update Location Name</label>
+                  <input type="text" id="update-event-venue-input" placeholder="Venue Name" class="form-control" required />
+                </div>
+                <div class="form-group">
+                  <label for="update-event-maps-input">Update Google Maps URL</label>
+                  <input type="url" id="update-event-maps-input" placeholder="https://maps.google.com/..." class="form-control" />
+                </div>
+                <button type="submit" id="btn-update-location" class="btn btn-secondary btn-sm">Update Venue Details</button>
+              </form>
+
+              <hr class="card-divider" />
+
+              <!-- Create Event Form -->
+              <h3 class="subsection-title">Create New Event</h3>
+              <form id="create-event-form" class="form-stack">
+                <div class="form-group">
+                  <input type="text" id="event-title-input" placeholder="Event Name (e.g. Rave Nights)" class="form-control" required />
+                </div>
+                <div class="form-group">
+                  <input type="text" id="event-venue-input" placeholder="Venue Location" class="form-control" required />
+                </div>
+                <div class="form-group">
+                  <input type="url" id="event-maps-input" placeholder="Google Maps URL (Optional)" class="form-control" />
+                </div>
+                <div class="form-group-split">
+                  <div class="form-group">
+                    <input type="datetime-local" id="event-datetime-input" class="form-control" required />
+                  </div>
+                  <div class="form-group">
+                    <input type="number" id="event-capacity-input" placeholder="Max Capacity" min="1" class="form-control" required />
+                  </div>
+                </div>
+                <button type="submit" id="btn-create-event" class="btn btn-primary">Create Event</button>
+              </form>
+            </div>
+
+            <!-- Issue Ticket Card -->
+            <div class="glass-card">
+              <h2 class="card-title">Issue E-Ticket</h2>
+              <p class="card-subtitle">Payments are handled offline. Register customer entries here.</p>
+              
+              <div class="issue-capacity-badge" style="background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.15); padding: 0.55rem 0.85rem; border-radius: var(--radius-sm); font-size: 0.8rem; font-weight: 600; display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+                <span style="color: var(--text-muted);">Available to Issue:</span>
+                <strong id="issue-capacity-remaining" style="color: var(--color-accent);">0 / 0 spots</strong>
+              </div>
+              
+              <form id="issue-ticket-form" class="form-stack">
+                <div class="form-group">
+                  <label for="ticket-holder-input">Primary Attendee Name</label>
+                  <input type="text" id="ticket-holder-input" placeholder="e.g. John Doe" class="form-control" required />
+                </div>
+                <div class="form-group">
+                  <label for="ticket-contact-input">WhatsApp / Contact Number</label>
+                  <input type="tel" id="ticket-contact-input" placeholder="e.g. +91 98765 43210" class="form-control" required />
+                </div>
+                <div class="form-group">
+                  <label for="ticket-guests-input">Total Ticket Size (Guests)</label>
+                  <div class="guest-counter-input">
+                    <button type="button" id="btn-guest-dec" class="counter-btn">-</button>
+                    <input type="number" id="ticket-guests-input" value="1" min="1" max="20" readOnly class="form-control text-center" />
+                    <button type="button" id="btn-guest-inc" class="counter-btn">+</button>
+                  </div>
+                </div>
+                <button type="submit" id="btn-issue-ticket" class="btn btn-accent">Issue E-Ticket & Generate QR</button>
+              </form>
+            </div>
+
+            <!-- Staff Management Card -->
+            <div class="glass-card">
+              <h2 class="card-title">Security Staff</h2>
+              <p class="card-subtitle">Create accounts for gate scanners.</p>
+              
+              <form id="create-staff-form" class="form-stack">
+                <div class="form-group">
+                  <label for="staff-username-input">Staff Username</label>
+                  <input type="text" id="staff-username-input" placeholder="Username (e.g. gate1)" class="form-control" required autocomplete="off" />
+                </div>
+                <div class="form-group">
+                  <label for="staff-password-input">Staff Password</label>
+                  <input type="password" id="staff-password-input" placeholder="Password" class="form-control" required />
+                </div>
+                <button type="submit" id="btn-create-staff" class="btn btn-secondary btn-block">Create Staff Account</button>
+              </form>
+              
+              <hr class="card-divider" />
+              
+              <h3 class="form-heading">Registered Staff</h3>
+              <div class="staff-list-wrapper">
+                <ul id="staff-list" class="staff-list-ul">
+                  <!-- Dynamically populated -->
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <!-- RIGHT SIDE: Analytics & Generated Tickets List -->
+          <div class="dashboard-main">
+            <!-- Event Analytics Card -->
+            <div class="glass-card stats-card">
+              <div class="stats-header">
+                <div>
+                  <h2 class="card-title" id="stats-event-title">No Event Selected</h2>
+                  <p class="card-subtitle" id="stats-event-venue">Please select or create an event</p>
+                </div>
+                <div class="stats-badge" id="stats-event-date">--</div>
+              </div>
+              
+              <!-- Telemetry circular progress block -->
+              <div class="stats-dashboard-content">
+                <div class="stats-telemetry">
+                  <div class="telemetry-item">
+                    <span class="telemetry-label">Checked In</span>
+                    <span class="telemetry-value" id="stats-checked-in-count">0</span>
+                  </div>
+                  <div class="telemetry-item">
+                    <span class="telemetry-label">Capacity</span>
+                    <span class="telemetry-value" id="stats-capacity-count">0</span>
+                  </div>
+                  <div class="telemetry-item">
+                    <span class="telemetry-label">Remaining Spots</span>
+                    <span class="telemetry-value" id="stats-remaining-count">0</span>
+                  </div>
+                </div>
+
+                <div class="circular-gauge-container">
+                  <svg class="circular-gauge-svg" viewBox="0 0 100 100">
+                    <defs>
+                      <linearGradient id="gauge-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="var(--color-primary)" />
+                        <stop offset="100%" stop-color="var(--color-accent)" />
+                      </linearGradient>
+                    </defs>
+                    <circle class="gauge-bg" cx="50" cy="50" r="42" />
+                    <circle class="gauge-fill" id="stats-gauge-fill" cx="50" cy="50" r="42" stroke-dasharray="264" stroke-dashoffset="264" />
+                  </svg>
+                  <div class="gauge-text">
+                    <span id="stats-entry-percentage">0</span>
+                    <span class="gauge-percent-symbol">%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Issued Tickets List -->
+            <div class="glass-card tickets-list-card">
+              <div class="list-header">
+                <div class="list-title-group">
+                  <h2 class="card-title">Issued Tickets Ledger</h2>
+                  <p class="card-subtitle">Manage, view passes, and monitor admissions in real-time.</p>
+                </div>
+                <div class="offline-queue-indicator hidden" id="offline-queue-banner">
+                  <span class="pulsing-warning-dot"></span>
+                  <span id="offline-queue-banner-text">0 Scans Queued Offline</span>
+                  <button id="btn-sync-offline" class="btn btn-sm btn-warning">Sync Now</button>
+                </div>
+              </div>
+
+              <!-- Search and Filter Control Panel -->
+              <div class="ledger-controls">
+                <div class="search-box-wrapper">
+                  <span class="search-icon">🔍</span>
+                  <input type="text" id="ledger-search-input" placeholder="Search by name, contact or ID..." class="form-control ledger-search-control" />
+                </div>
+                <div class="filter-tabs">
+                  <button class="filter-tab active" data-filter="all">All</button>
+                  <button class="filter-tab" data-filter="pending">Unused</button>
+                  <button class="filter-tab" data-filter="partial">Partial</button>
+                  <button class="filter-tab" data-filter="completed">Checked In</button>
+                  <button class="filter-tab" data-filter="invalidated">Invalidated</button>
+                </div>
+              </div>
+              
+              <div class="table-container">
+                <table class="tickets-table">
+                  <thead>
+                    <tr>
+                      <th>Holder Name</th>
+                      <th>Ticket ID</th>
+                      <th>Guests Admitted</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tickets-table-body">
+                    <!-- Populated dynamically -->
+                  </tbody>
+                </table>
+                <div id="no-tickets-placeholder" class="no-data-placeholder">
+                  <span class="placeholder-icon">🎟️</span>
+                  <p>No tickets issued for this event yet.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- VIEW 2: STAFF QR CAMERA SCANNER -->
+      <section id="view-scanner" class="app-view">
+        <div class="scanner-container">
+          <div class="glass-card scanner-card">
+            <h2 class="card-title text-center">Event Gate Check-in</h2>
+            <p class="card-subtitle text-center">Point your phone camera at the customer's e-ticket QR code.</p>
+            
+            <!-- Scanner Camera Box -->
+            <div class="camera-frame-wrapper">
+              <div id="qr-reader" class="camera-viewport">
+                <!-- html5-qrcode library will insert scanner video elements here -->
+              </div>
+              <div class="camera-overlay">
+                <div class="scanner-laser"></div>
+              </div>
+            </div>
+
+            <!-- Alternative Manual Scanner Input (useful when webcam permission is not available or for fast testing) -->
+            <div class="manual-scan-box">
+              <p class="text-xs text-center text-muted">Trouble with camera? Input Ticket ID manually:</p>
+              <div class="input-group">
+                <input type="text" id="manual-ticket-id-input" placeholder="Paste Ticket ID (e.g. TCK-x2a98f)" class="form-control" />
+                <button id="btn-manual-scan" class="btn btn-primary">Admit</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Dynamic Scan Validation Modal overlay (slide up card) -->
+          <div id="scan-validation-modal" class="validation-modal">
+            <div class="modal-content glass-card">
+              <div class="modal-status-header success" id="modal-header-status">
+                <div class="status-icon" id="modal-status-icon">✓</div>
+                <h3 class="modal-status-title" id="modal-status-title">Ticket Verified</h3>
+              </div>
+              
+              <div class="modal-body">
+                <div class="modal-ticket-details">
+                  <div class="detail-row">
+                    <span class="detail-label">Ticket Holder:</span>
+                    <span class="detail-value" id="modal-holder-name">Jane Doe</span>
+                  </div>
+                  <div class="detail-row">
+                    <span class="detail-label">Event:</span>
+                    <span class="detail-value" id="modal-event-title">Sunset Beats</span>
+                  </div>
+                  <div class="detail-row">
+                    <span class="detail-label">Group Checked-In:</span>
+                    <span class="detail-value highlight-value" id="modal-checkin-ratio">2 of 4</span>
+                  </div>
+                </div>
+
+                <div class="modal-entry-form" id="modal-admission-form-wrapper">
+                  <h4 class="form-heading">How many guests are entering now?</h4>
+                  <div class="admit-selector-container">
+                    <button type="button" id="btn-admit-dec" class="counter-btn">-</button>
+                    <input type="number" id="admit-guests-input" value="1" min="1" max="4" class="form-control text-center" readOnly />
+                    <button type="button" id="btn-admit-inc" class="counter-btn">+</button>
+                  </div>
+                  <p class="remaining-text" id="modal-remaining-text">2 spots remaining on this ticket.</p>
+                  
+                  <div class="modal-actions">
+                    <button id="btn-confirm-admission" class="btn btn-primary btn-block">Confirm Entry</button>
+                    <button id="btn-cancel-admission" class="btn btn-secondary btn-block">Cancel</button>
+                  </div>
+                </div>
+
+                <div class="modal-success-screen hidden" id="modal-success-screen">
+                  <div class="success-chime-effect">🎉</div>
+                  <p class="success-message" id="modal-success-msg">Successfully Checked In!</p>
+                  <button id="btn-close-success" class="btn btn-primary btn-block">Scan Next Ticket</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 3: CUSTOMER E-TICKET PASS VIEW -->
+      <section id="view-ticket" class="app-view">
+        <div class="ticket-pass-container">
+          <div class="ticket-pass-card glass-card">
+            <!-- Ticket Header -->
+            <div class="ticket-header">
+              <span class="ticket-brand">⚡ ScanPass E-Ticket</span>
+              <span class="ticket-status-tag status-pending" id="ticket-badge-status">Pending</span>
+            </div>
+            
+            <div class="ticket-card-divider-dotted"></div>
+
+            <!-- Event Details -->
+            <div class="ticket-body">
+              <h1 class="ticket-event-title" id="ticket-event-title">Event Name</h1>
+              <a href="#" target="_blank" class="ticket-venue" id="ticket-event-venue-link">📍 <span id="ticket-event-venue">Venue Location</span></a>
+              <div class="ticket-datetime-row">
+                <div>
+                  <span class="ticket-meta-label">DATE & TIME</span>
+                  <span class="ticket-meta-value" id="ticket-event-datetime">--</span>
+                </div>
+              </div>
+
+              <div class="ticket-card-divider-line"></div>
+
+              <!-- Ticket Info -->
+              <div class="ticket-info-grid">
+                <div>
+                  <span class="ticket-meta-label">PASS HOLDER</span>
+                  <span class="ticket-meta-value" id="ticket-holder-name-val">Attendee Name</span>
+                </div>
+                <div>
+                  <span class="ticket-meta-label">TOTAL GUESTS</span>
+                  <span class="ticket-meta-value" id="ticket-guests-val">Group of 1</span>
+                </div>
+              </div>
+
+              <div class="ticket-checkin-tracker">
+                <div class="tracker-label-row">
+                  <span>Entry Admission Status:</span>
+                  <strong id="ticket-checkin-fraction">0 / 1 Entered</strong>
+                </div>
+                <div class="tracker-bar">
+                  <div id="ticket-tracker-fill" class="tracker-bar-fill" style="width: 0%"></div>
+                </div>
+              </div>
+
+              <!-- Ticket QR Code container -->
+              <div class="ticket-qr-container">
+                <canvas id="ticket-qr-canvas"></canvas>
+                <div class="qr-secure-overlay">SCANPASS SECURE</div>
+              </div>
+
+              <p class="ticket-footer-text">Please present this QR code to the event staff at the gate. If you are entering as a group, you can enter together or separately.</p>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Global Floating Toast Notification Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
