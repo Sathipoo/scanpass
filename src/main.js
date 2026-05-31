@@ -52,11 +52,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Navigation Tabs
   const navBtnDashboard = document.getElementById('nav-btn-dashboard');
+  const navBtnEvents = document.getElementById('nav-btn-events');
   const navBtnScanner = document.getElementById('nav-btn-scanner');
 
   // Views
   const viewLogin = document.getElementById('view-login');
   const viewDashboard = document.getElementById('view-dashboard');
+  const viewEvents = document.getElementById('view-events');
   const viewScanner = document.getElementById('view-scanner');
   const viewTicket = document.getElementById('view-ticket');
 
@@ -115,6 +117,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       headerNav.classList.add('hidden');
       // Reset navigation link visibility
       navBtnDashboard.style.display = 'block';
+      navBtnEvents.style.display = 'block';
       navBtnScanner.style.display = 'block';
       stopCameraScanner();
       await switchView('login');
@@ -129,6 +132,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Dynamic access controls based on user role
     if (session.role === 'admin') {
       navBtnDashboard.style.display = 'block';
+      navBtnEvents.style.display = 'block';
       navBtnScanner.style.display = 'none'; // Admin cannot perform QR scans
       
       await switchView('dashboard');
@@ -136,6 +140,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       await initAdminConsole(); // Set up staff management panels
     } else if (session.role === 'staff') {
       navBtnDashboard.style.display = 'none'; // Staff cannot access ledger
+      navBtnEvents.style.display = 'none';
       navBtnScanner.style.display = 'block';
       
       await switchView('scanner'); // Direct staff to the QR scanner
@@ -153,10 +158,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Toggle views active class
     viewLogin.classList.remove('active-view');
     viewDashboard.classList.remove('active-view');
+    viewEvents.classList.remove('active-view');
     viewScanner.classList.remove('active-view');
     viewTicket.classList.remove('active-view');
 
     navBtnDashboard.classList.remove('active');
+    navBtnEvents.classList.remove('active');
     navBtnScanner.classList.remove('active');
 
     if (viewName === 'login') {
@@ -165,6 +172,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       viewDashboard.classList.add('active-view');
       navBtnDashboard.classList.add('active');
       await refreshDashboard();
+    } else if (viewName === 'events') {
+      viewEvents.classList.add('active-view');
+      navBtnEvents.classList.add('active');
+      await renderEventsList();
     } else if (viewName === 'scanner') {
       viewScanner.classList.add('active-view');
       navBtnScanner.classList.add('active');
@@ -254,6 +265,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function initConsole() {
     // Nav links binding
     navBtnDashboard.addEventListener('click', async () => await switchView('dashboard'));
+    navBtnEvents.addEventListener('click', async () => await switchView('events'));
     navBtnScanner.addEventListener('click', async () => await switchView('scanner'));
 
     // Helper to prepopulate current date and time in local timezone
@@ -324,6 +336,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       createEventForm.reset();
       setDefaultDateTime();
       await populateEventsSelector(newEvent.eventId); // Select the newly created event
+      await renderEventsList(); // Refresh events directory list
     });
 
     // Update Event Location Form Submission
@@ -342,6 +355,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (res.success) {
           showToast(res.message, 'success');
           await populateEventsSelector(currentActiveEventId);
+          await renderEventsList(); // Refresh events directory list
         } else {
           showToast(res.message, 'error');
         }
@@ -464,6 +478,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         issueCapacityRemainingEl.style.color = 'var(--color-accent)';
       }
 
+      // Clear KPIs if no event is active
+      const kpiTicketsCount = document.getElementById('kpi-tickets-count');
+      const kpiSpotsAllocated = document.getElementById('kpi-spots-allocated');
+      const kpiCheckedIn = document.getElementById('kpi-checked-in');
+      const kpiCheckedInSubtext = document.getElementById('kpi-checked-in-subtext');
+      const kpiUnusedCount = document.getElementById('kpi-unused-count');
+      const kpiPartialCount = document.getElementById('kpi-partial-count');
+      const kpiInvalidatedSubtext = document.getElementById('kpi-invalidated-subtext');
+
+      if (kpiTicketsCount) kpiTicketsCount.textContent = '0';
+      if (kpiSpotsAllocated) kpiSpotsAllocated.textContent = '0 / 0';
+      if (kpiCheckedIn) kpiCheckedIn.textContent = '0';
+      if (kpiCheckedInSubtext) kpiCheckedInSubtext.textContent = '0 expected guests left';
+      if (kpiUnusedCount) kpiUnusedCount.textContent = '0';
+      if (kpiPartialCount) kpiPartialCount.textContent = '0';
+      if (kpiInvalidatedSubtext) kpiInvalidatedSubtext.textContent = '0 invalidated';
+
       document.getElementById('tickets-table-body').innerHTML = '';
       
       const placeholder = document.getElementById('no-tickets-placeholder');
@@ -559,6 +590,38 @@ document.addEventListener('DOMContentLoaded', async () => {
         issueCapacityRemainingEl.style.color = 'var(--color-accent)';
       }
     }
+
+    // Update KPI grid metrics
+    const kpiTicketsCount = document.getElementById('kpi-tickets-count');
+    const kpiSpotsAllocated = document.getElementById('kpi-spots-allocated');
+    const kpiCheckedIn = document.getElementById('kpi-checked-in');
+    const kpiCheckedInSubtext = document.getElementById('kpi-checked-in-subtext');
+    const kpiUnusedCount = document.getElementById('kpi-unused-count');
+    const kpiPartialCount = document.getElementById('kpi-partial-count');
+    const kpiInvalidatedSubtext = document.getElementById('kpi-invalidated-subtext');
+
+    if (kpiTicketsCount) kpiTicketsCount.textContent = tickets.length;
+    if (kpiSpotsAllocated) kpiSpotsAllocated.textContent = `${totalGuestsIssued} / ${maxCapacity}`;
+    
+    const kpiSpotsSubtext = document.getElementById('kpi-spots-subtext');
+    if (kpiSpotsSubtext) {
+      const percentageAllocated = Math.round((totalGuestsIssued / maxCapacity) * 100) || 0;
+      kpiSpotsSubtext.textContent = `${percentageAllocated}% of capacity allocated`;
+    }
+
+    if (kpiCheckedIn) kpiCheckedIn.textContent = stats.checkedIn;
+    if (kpiCheckedInSubtext) {
+      const expectedLeft = Math.max(0, totalGuestsIssued - stats.checkedIn);
+      kpiCheckedInSubtext.textContent = `${expectedLeft} expected guest(s) left`;
+    }
+
+    const unusedCount = tickets.filter(t => t.status === 'pending').length;
+    const partialCount = tickets.filter(t => t.status === 'partial').length;
+    const invalidatedCount = tickets.filter(t => t.status === 'invalidated').length;
+
+    if (kpiUnusedCount) kpiUnusedCount.textContent = unusedCount;
+    if (kpiPartialCount) kpiPartialCount.textContent = partialCount;
+    if (kpiInvalidatedSubtext) kpiInvalidatedSubtext.textContent = `${invalidatedCount} invalidated pass(es)`;
 
     // Render Tickets Ledger List
     await renderTicketsLedger();
@@ -731,6 +794,97 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
       });
     }
+  }
+
+  // 5B. EVENTS VIEW DIRECTORY RENDER
+  async function renderEventsList() {
+    const tableBody = document.getElementById('events-directory-table-body');
+    if (!tableBody) return;
+
+    const events = await getEvents();
+    tableBody.innerHTML = '';
+
+    if (events.length === 0) {
+      tableBody.innerHTML = `
+        <tr>
+          <td colspan="5" class="text-center" style="padding: 2rem; color: var(--text-muted);">
+            No events registered. Create an event in the sidebar to get started.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    events.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    events.forEach(e => {
+      const isActive = e.eventId === currentActiveEventId;
+      const tr = document.createElement('tr');
+      if (isActive) {
+        tr.className = 'event-row-active';
+      }
+
+      // Try-catch safe date parsing
+      let dateStr = '--';
+      if (e.dateTime) {
+        try {
+          const d = new Date(e.dateTime);
+          if (!isNaN(d.getTime())) {
+            dateStr = d.toLocaleString(undefined, {
+              month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+            });
+          }
+        } catch (err) {
+          console.warn('Invalid date format:', e.dateTime);
+        }
+      }
+
+      const statusBadge = isActive 
+        ? `<span class="status-badge-inline active-event-badge">Active</span>`
+        : `<span class="status-badge-inline pending" style="opacity: 0.5;">Inactive</span>`;
+
+      const actionBtn = isActive
+        ? `<button class="btn btn-sm btn-secondary" disabled style="opacity: 0.5; pointer-events: none;">✓ Active</button>`
+        : `<button class="btn btn-sm btn-accent btn-activate-event" data-id="${e.eventId}">Activate</button>`;
+
+      const mapsLink = e.mapsUrl 
+        ? `<a href="${e.mapsUrl}" target="_blank" style="font-size: 0.75rem; color: var(--color-accent); display: block; margin-top: 0.25rem;">📍 View Map</a>`
+        : '';
+
+      tr.innerHTML = `
+        <td>
+          <div style="font-weight: 600; color: var(--text-main);">${e.title}</div>
+          <div style="font-size: 0.75rem; color: var(--text-muted);">${e.venue}</div>
+          ${mapsLink}
+        </td>
+        <td><span style="font-size: 0.85rem; font-weight: 500;">${dateStr}</span></td>
+        <td>
+          <strong style="color: var(--color-primary);">${e.maxCapacity}</strong> 
+          <span style="color: var(--text-muted);">spots</span>
+        </td>
+        <td>${statusBadge}</td>
+        <td>${actionBtn}</td>
+      `;
+
+      tableBody.appendChild(tr);
+    });
+
+    // Bind activate button clicks
+    tableBody.querySelectorAll('.btn-activate-event').forEach(btn => {
+      btn.addEventListener('click', async (evt) => {
+        const id = evt.currentTarget.getAttribute('data-id');
+        currentActiveEventId = id;
+        
+        // Sync active selector dropdown in dashboard
+        const selector = document.getElementById('event-selector');
+        if (selector) {
+          selector.value = id;
+        }
+
+        showToast('Active event switched successfully.', 'success');
+        await renderEventsList();
+      });
+    });
   }
 
   // 6. CUSTOMER TICKET PASS VIEW RENDER

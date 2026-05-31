@@ -1726,3 +1726,61 @@ input:checked + .switch-slider:before {
   padding: 0.1rem 0.3rem;
   border-radius: 4px;
 }
+
+/* 10. KPI GRID & CARD TELEMETRY PANELS */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
+  gap: 1.25rem;
+  margin: 1.5rem 0;
+}
+
+.kpi-card {
+  padding: 1.25rem 1rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-md);
+  min-height: 100px;
+  background: var(--card-bg);
+  backdrop-filter: blur(12px);
+  transition: transform var(--transition-fast), border-color var(--transition-fast);
+}
+
+.kpi-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(6, 182, 212, 0.3);
+}
+
+.kpi-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.kpi-value {
+  font-size: 2rem;
+  font-weight: 800;
+  margin-top: 0.25rem;
+  line-height: 1;
+}
+
+.kpi-subtext {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.5rem;
+}
+
+.event-row-active {
+  background: rgba(6, 182, 212, 0.04) !important;
+  border-left: 3px solid var(--color-accent) !important;
+}
+
+.status-badge-inline.active-event-badge {
+  background: rgba(6, 182, 212, 0.1) !important;
+  color: var(--color-accent) !important;
+  border: 1px solid rgba(6, 182, 212, 0.25) !important;
+}
