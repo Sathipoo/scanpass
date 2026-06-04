@@ -18,12 +18,17 @@ import {
   syncOfflineQueue,
   getStaffAccounts,
   createStaffAccount,
+  registerVendor,
   authenticateUser,
   getCurrentSession,
   logoutSession,
   updateEventLocation,
   resetTicketCheckIn,
-  invalidateTicket
+  invalidateTicket,
+  getVendors,
+  updateVendorStatus,
+  deleteVendor,
+  getVendorEvents
 } from './db.js';
 
 // Global Scanner Variable
@@ -53,14 +58,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Navigation Tabs
   const navBtnDashboard = document.getElementById('nav-btn-dashboard');
   const navBtnEvents = document.getElementById('nav-btn-events');
+  const navBtnVendors = document.getElementById('nav-btn-vendors');
   const navBtnScanner = document.getElementById('nav-btn-scanner');
 
   // Views
+  const viewLanding = document.getElementById('view-landing');
   const viewLogin = document.getElementById('view-login');
   const viewDashboard = document.getElementById('view-dashboard');
   const viewEvents = document.getElementById('view-events');
   const viewScanner = document.getElementById('view-scanner');
   const viewTicket = document.getElementById('view-ticket');
+  const viewKt = document.getElementById('view-kt');
+  const viewVendors = document.getElementById('view-vendors');
 
   // 1. ROUTER SYSTEM (Determine user view based on query params or active sessions)
   const urlParams = new URLSearchParams(window.location.search);
@@ -84,7 +93,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (session) {
       await handleSessionLogin(session);
     } else {
-      await switchView('login');
+      await switchView('landing');
     }
   }
 
@@ -118,6 +127,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Reset navigation link visibility
       navBtnDashboard.style.display = 'block';
       navBtnEvents.style.display = 'block';
+      if (navBtnVendors) navBtnVendors.style.display = 'block';
       navBtnScanner.style.display = 'block';
       stopCameraScanner();
       await switchView('login');
@@ -129,18 +139,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Show navigation container
     headerNav.classList.remove('hidden');
     
+    // Reset all tabs display first
+    navBtnDashboard.style.display = 'none';
+    navBtnEvents.style.display = 'none';
+    if (navBtnVendors) navBtnVendors.style.display = 'none';
+    navBtnScanner.style.display = 'none';
+
     // Dynamic access controls based on user role
     if (session.role === 'admin') {
       navBtnDashboard.style.display = 'block';
       navBtnEvents.style.display = 'block';
-      navBtnScanner.style.display = 'none'; // Admin cannot perform QR scans
+      if (navBtnVendors) navBtnVendors.style.display = 'block';
+      
+      await switchView('dashboard');
+      await initConsole(); // Set up standard event/ticket creation
+      await initAdminConsole(); // Set up staff management panels
+    } else if (session.role === 'vendor') {
+      navBtnDashboard.style.display = 'block';
+      navBtnEvents.style.display = 'block';
       
       await switchView('dashboard');
       await initConsole(); // Set up standard event/ticket creation
       await initAdminConsole(); // Set up staff management panels
     } else if (session.role === 'staff') {
-      navBtnDashboard.style.display = 'none'; // Staff cannot access ledger
-      navBtnEvents.style.display = 'none';
       navBtnScanner.style.display = 'block';
       
       await switchView('scanner'); // Direct staff to the QR scanner
@@ -150,38 +171,80 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Switch View Helper
   async function switchView(viewName) {
+    // Protected Views Authorization Guard Check
+    const protectedViews = ['dashboard', 'events', 'scanner', 'vendors'];
+    if (protectedViews.includes(viewName)) {
+      const session = getCurrentSession();
+      if (!session) {
+        // Unauthorized - redirect to login page
+        viewName = 'login';
+      } else if (session.role === 'staff' && (viewName === 'dashboard' || viewName === 'events' || viewName === 'vendors')) {
+        // Security staff cannot access administrative console views
+        viewName = 'scanner';
+      } else if (session.role === 'vendor' && viewName === 'vendors') {
+        // Vendors cannot access master admin console
+        viewName = 'dashboard';
+      } else if (session.role === 'admin' && viewName === 'scanner') {
+        // Platform admins cannot access scanner camera views
+        viewName = 'dashboard';
+      }
+    }
+
     // Stop scanner if leaving the scanner view
     if (viewName !== 'scanner') {
       stopCameraScanner();
     }
 
     // Toggle views active class
+    if (viewLanding) viewLanding.classList.remove('active-view');
     viewLogin.classList.remove('active-view');
     viewDashboard.classList.remove('active-view');
     viewEvents.classList.remove('active-view');
     viewScanner.classList.remove('active-view');
     viewTicket.classList.remove('active-view');
+    if (viewKt) viewKt.classList.remove('active-view');
+    if (viewVendors) viewVendors.classList.remove('active-view');
 
     navBtnDashboard.classList.remove('active');
     navBtnEvents.classList.remove('active');
+    if (navBtnVendors) navBtnVendors.classList.remove('active');
     navBtnScanner.classList.remove('active');
 
-    if (viewName === 'login') {
+    if (viewName === 'landing') {
+      if (viewLanding) viewLanding.classList.add('active-view');
+      // Hide header nav for clean landing experience
+      headerNav.classList.add('hidden');
+    } else if (viewName === 'login') {
       viewLogin.classList.add('active-view');
+      // Hide header nav for clean login experience
+      headerNav.classList.add('hidden');
     } else if (viewName === 'dashboard') {
       viewDashboard.classList.add('active-view');
       navBtnDashboard.classList.add('active');
+      headerNav.classList.remove('hidden');
       await refreshDashboard();
     } else if (viewName === 'events') {
       viewEvents.classList.add('active-view');
       navBtnEvents.classList.add('active');
+      headerNav.classList.remove('hidden');
       await renderEventsList();
     } else if (viewName === 'scanner') {
       viewScanner.classList.add('active-view');
       navBtnScanner.classList.add('active');
+      headerNav.classList.remove('hidden');
       startCameraScanner();
     } else if (viewName === 'ticket') {
       viewTicket.classList.add('active-view');
+    } else if (viewName === 'kt') {
+      if (viewKt) viewKt.classList.add('active-view');
+      headerNav.classList.add('hidden');
+    } else if (viewName === 'vendors') {
+      if (viewVendors) {
+        viewVendors.classList.add('active-view');
+        if (navBtnVendors) navBtnVendors.classList.add('active');
+        headerNav.classList.remove('hidden');
+        await initMasterAdminConsole();
+      }
     }
   }
 
@@ -243,8 +306,142 @@ document.addEventListener('DOMContentLoaded', async () => {
     }, 3500);
   }
 
+  // 3B. LANDING PAGE & SIGNUP CONTROLLER
+  const btnLandingLogin = document.getElementById('btn-landing-login');
+  const btnLoginToSignup = document.getElementById('btn-login-to-signup');
+  const btnSignupToLogin = document.getElementById('btn-signup-to-login');
+  const vendorSignupForm = document.getElementById('vendor-signup-form');
+  const signupErrorMsg = document.getElementById('signup-error-msg');
+  const emailSimulatorModal = document.getElementById('email-simulator-modal');
+
+  if (btnLandingLogin) {
+    btnLandingLogin.addEventListener('click', () => switchView('login'));
+  }
+
+  if (btnSignupToLogin) {
+    btnSignupToLogin.addEventListener('click', (e) => {
+      e.preventDefault();
+      switchView('login');
+    });
+  }
+
+  if (btnLoginToSignup) {
+    btnLoginToSignup.addEventListener('click', (e) => {
+      e.preventDefault();
+      switchView('landing');
+      const regSection = document.getElementById('register-vendor-section');
+      if (regSection) regSection.scrollIntoView({ behavior: 'smooth' });
+    });
+  }
+
+  // Handle Vendor Signup Form Submission
+  if (vendorSignupForm) {
+    vendorSignupForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const companyName = document.getElementById('vendor-company-name').value;
+      const ownerName = document.getElementById('vendor-owner-name').value;
+      const email = document.getElementById('vendor-email').value;
+      const phone = document.getElementById('vendor-phone').value;
+
+      if (signupErrorMsg) signupErrorMsg.classList.add('hidden');
+      const res = await registerVendor(companyName, ownerName, email, phone);
+
+      if (res.success) {
+        vendorSignupForm.reset();
+        
+        // Show simulated email modal
+        document.getElementById('email-simulator-to').textContent = `To: ${res.credentials.email}`;
+        document.getElementById('email-simulator-owner').textContent = res.credentials.companyName;
+        document.getElementById('email-simulator-company').textContent = res.credentials.companyName;
+        document.getElementById('email-simulator-username').textContent = res.credentials.email;
+        document.getElementById('email-simulator-password').textContent = res.credentials.password;
+
+        if (emailSimulatorModal) emailSimulatorModal.classList.add('show');
+        showToast('Vendor registered successfully!', 'success');
+      } else {
+        if (signupErrorMsg) {
+          signupErrorMsg.textContent = res.message;
+          signupErrorMsg.classList.remove('hidden');
+        }
+        showToast(res.message, 'error');
+      }
+    });
+  }
+
+  // Handle Email Simulator Modal buttons
+  const btnCopySimulatedPassword = document.getElementById('btn-copy-simulated-password');
+  if (btnCopySimulatedPassword) {
+    btnCopySimulatedPassword.addEventListener('click', () => {
+      const password = document.getElementById('email-simulator-password').textContent;
+      navigator.clipboard.writeText(password).then(() => {
+        showToast('Temporary password copied!', 'success');
+      });
+    });
+  }
+
+  const btnEmailModalLogin = document.getElementById('btn-email-modal-login');
+  if (btnEmailModalLogin) {
+    btnEmailModalLogin.addEventListener('click', () => {
+      const password = document.getElementById('email-simulator-password').textContent;
+      const email = document.getElementById('email-simulator-username').textContent;
+      
+      navigator.clipboard.writeText(password).then(() => {
+        if (emailSimulatorModal) emailSimulatorModal.classList.remove('show');
+        
+        // Switch to login and prefill username/password
+        switchView('login');
+        const loginUsernameInput = document.getElementById('login-username');
+        const loginPasswordInput = document.getElementById('login-password');
+        if (loginUsernameInput) loginUsernameInput.value = email;
+        if (loginPasswordInput) loginPasswordInput.value = password;
+        
+        showToast('Credentials loaded! Sign in now.', 'success');
+      });
+    });
+  }
+
+  // Theme Toggle Button Wiring
+  const btnThemeToggle = document.getElementById('btn-global-theme-toggle');
+  if (btnThemeToggle) {
+    const savedTheme = localStorage.getItem('scanpass_theme') || 'dark';
+    if (savedTheme === 'light') {
+      document.body.classList.add('light-theme');
+    }
+    btnThemeToggle.addEventListener('click', () => {
+      document.body.classList.toggle('light-theme');
+      const isLight = document.body.classList.contains('light-theme');
+      localStorage.setItem('scanpass_theme', isLight ? 'light' : 'dark');
+      showToast(`Switched to ${isLight ? 'Light' : 'Dark'} Theme`, 'success');
+    });
+  }
+
+  // KT guide links wiring
+  const linkLandingToKt = document.getElementById('link-landing-to-kt');
+  if (linkLandingToKt) {
+    linkLandingToKt.addEventListener('click', (e) => {
+      e.preventDefault();
+      switchView('kt');
+    });
+  }
+
+  const btnKtBack = document.getElementById('btn-kt-back');
+  if (btnKtBack) {
+    btnKtBack.addEventListener('click', () => {
+      switchView('landing');
+    });
+  }
+
+  // Navigation link binding (bound ONCE globally)
+  if (navBtnDashboard) navBtnDashboard.addEventListener('click', async () => await switchView('dashboard'));
+  if (navBtnEvents) navBtnEvents.addEventListener('click', async () => await switchView('events'));
+  if (navBtnVendors) navBtnVendors.addEventListener('click', async () => await switchView('vendors'));
+  if (navBtnScanner) navBtnScanner.addEventListener('click', async () => await switchView('scanner'));
+
   // Sync Event Listener
-  document.getElementById('btn-sync-offline').addEventListener('click', triggerSyncProcess);
+  const btnSyncOffline = document.getElementById('btn-sync-offline');
+  if (btnSyncOffline) {
+    btnSyncOffline.addEventListener('click', triggerSyncProcess);
+  }
 
   function triggerSyncProcess() {
     const queue = getOfflineQueue();
@@ -263,11 +460,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // 4. VENDOR CONSOLE INITIALIZATION
   async function initConsole() {
-    // Nav links binding
-    navBtnDashboard.addEventListener('click', async () => await switchView('dashboard'));
-    navBtnEvents.addEventListener('click', async () => await switchView('events'));
-    navBtnScanner.addEventListener('click', async () => await switchView('scanner'));
-
     // Helper to prepopulate current date and time in local timezone
     function setDefaultDateTime() {
       const now = new Date();
@@ -337,6 +529,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       setDefaultDateTime();
       await populateEventsSelector(newEvent.eventId); // Select the newly created event
       await renderEventsList(); // Refresh events directory list
+      await populateStaffEventSelect();
     });
 
     // Update Event Location Form Submission
@@ -999,6 +1192,45 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
+  // Helper to show full screen outcome inside scanner validation modal
+  function showOutcomeScreen(state, title, message, holder = 'N/A', eventName = 'N/A', admitted = 'N/A') {
+    const outcomeScreen = document.getElementById('modal-outcome-screen');
+    const validationBody = document.getElementById('modal-validation-body');
+    const statusHeader = document.getElementById('modal-header-status');
+    
+    if (!outcomeScreen || !validationBody || !statusHeader) return;
+
+    // Set text
+    document.getElementById('outcome-screen-title').textContent = title;
+    document.getElementById('outcome-screen-message').textContent = message;
+    document.getElementById('outcome-screen-holder').textContent = holder;
+    document.getElementById('outcome-screen-event').textContent = eventName;
+    document.getElementById('outcome-screen-admitted').textContent = admitted;
+    
+    // Set emoji icon
+    const chimeEl = document.getElementById('outcome-screen-chime');
+    if (chimeEl) {
+      if (state === 'success') chimeEl.textContent = '🎉';
+      else if (state === 'error') chimeEl.textContent = '✕';
+      else if (state === 'mismatch') chimeEl.textContent = '⚠️';
+      else if (state === 'redeemed') chimeEl.textContent = '⏰';
+    }
+
+    // Clear previous outcome classes
+    outcomeScreen.className = 'modal-outcome-screen';
+    outcomeScreen.classList.add(state);
+    
+    // Hide standard forms, show outcome
+    validationBody.classList.add('hidden');
+    statusHeader.classList.add('hidden');
+    outcomeScreen.classList.remove('hidden');
+
+    const modalContent = document.querySelector('#scan-validation-modal .modal-content');
+    if (modalContent) {
+      modalContent.classList.add('has-outcome');
+    }
+  }
+
   // Confirm Entry Gate scan
   document.getElementById('btn-confirm-admission').addEventListener('click', async () => {
     if (!currentScannedTicket) return;
@@ -1009,20 +1241,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     const res = await checkInTicket(currentScannedTicket.ticketId, count, staffId);
 
     if (res.success) {
-      // Play a visual transition success state
-      document.getElementById('modal-admission-form-wrapper').classList.add('hidden');
-      document.getElementById('modal-success-screen').classList.remove('hidden');
-      
-      const statusTitle = document.getElementById('modal-status-title');
-      const statusHeader = document.getElementById('modal-header-status');
-      
-      statusHeader.className = 'modal-status-header success';
-      statusTitle.textContent = 'Access Admitted';
-      
-      document.getElementById('modal-success-msg').textContent = `Successfully checked-in ${count} guest(s)!`;
+      const event = await getEvent(res.ticket.eventId);
+      const eventTitle = event ? event.title : 'Unknown Event';
+      showOutcomeScreen(
+        'success',
+        'Access Admitted',
+        `Successfully checked in ${count} guest(s)!`,
+        res.ticket.holderName,
+        eventTitle,
+        `${res.ticket.checkedInCount} of ${res.ticket.totalGuests}`
+      );
       showToast(res.message, 'success');
-      
-      // Update our temporary local object
       currentScannedTicket = res.ticket;
     } else {
       showToast(res.message, 'error');
@@ -1032,8 +1261,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Cancel Admission
   document.getElementById('btn-cancel-admission').addEventListener('click', hideValidationModal);
   
-  // Close success scan next
-  document.getElementById('btn-close-success').addEventListener('click', hideValidationModal);
+  // Close outcome screen / scan next
+  const btnOutcomeClose = document.getElementById('btn-outcome-close');
+  if (btnOutcomeClose) {
+    btnOutcomeClose.addEventListener('click', hideValidationModal);
+  }
 
   async function openValidationModal(id) {
     // Normalize if scanned URL
@@ -1051,49 +1283,67 @@ document.addEventListener('DOMContentLoaded', async () => {
     const t = await getTicket(ticketId);
     validationModal.classList.add('show');
     
-    // Clear screens
-    document.getElementById('modal-admission-form-wrapper').classList.remove('hidden');
-    document.getElementById('modal-success-screen').classList.add('hidden');
-
+    // Reset modal screens to standard inputs state
+    const outcomeScreen = document.getElementById('modal-outcome-screen');
+    const validationBody = document.getElementById('modal-validation-body');
     const statusHeader = document.getElementById('modal-header-status');
+    if (outcomeScreen) outcomeScreen.classList.add('hidden');
+    if (validationBody) validationBody.classList.remove('hidden');
+    if (statusHeader) statusHeader.classList.remove('hidden');
+
+    const modalContent = document.querySelector('#scan-validation-modal .modal-content');
+    if (modalContent) {
+      modalContent.classList.remove('has-outcome');
+    }
+
+    if (statusHeader) statusHeader.className = 'modal-status-header success';
     const statusIcon = document.getElementById('modal-status-icon');
+    if (statusIcon) statusIcon.textContent = '✓';
     const statusTitle = document.getElementById('modal-status-title');
+    if (statusTitle) statusTitle.textContent = 'Ticket Verified';
 
     if (!t) {
-      // Error: invalid ticket ID
-      statusHeader.className = 'modal-status-header error';
-      statusIcon.textContent = '✕';
-      statusTitle.textContent = 'Invalid Ticket';
-      
-      document.getElementById('modal-holder-name').textContent = 'N/A';
-      document.getElementById('modal-event-title').textContent = 'Unknown Event';
-      document.getElementById('modal-checkin-ratio').textContent = '0 of 0';
-      
-      // Hide entry widgets
-      document.getElementById('modal-admission-form-wrapper').classList.add('hidden');
-      document.getElementById('modal-success-screen').classList.remove('hidden');
-      document.getElementById('modal-success-msg').textContent = 'This ticket identifier was not found in the cloud registry database.';
-      document.getElementById('btn-close-success').textContent = 'Scan Again';
+      showOutcomeScreen(
+        'error',
+        'Invalid Ticket',
+        'This ticket identifier was not found in the ScanPass registry database.',
+        'N/A',
+        'Unknown Event',
+        'N/A'
+      );
+      currentScannedTicket = null;
+      return;
+    }
+
+    // Role-based Event scoping guard check for staff accounts
+    const session = getCurrentSession();
+    if (session && session.role === 'staff' && session.eventId && session.eventId !== t.eventId) {
+      const event = await getEvent(t.eventId);
+      const eventTitle = event ? event.title : 'Unknown Event';
+      showOutcomeScreen(
+        'mismatch',
+        'Event Mismatch',
+        `Unauthorized Gate: Staff is registered to Event ID "${session.eventId}", but this ticket is for Event "${eventTitle}". Access Denied.`,
+        t.holderName,
+        eventTitle,
+        `Denied (${t.checkedInCount} of ${t.totalGuests})`
+      );
       currentScannedTicket = null;
       return;
     }
 
     // Check if invalidated
     if (t.status === 'invalidated') {
-      statusHeader.className = 'modal-status-header error';
-      statusIcon.textContent = '✕';
-      statusTitle.textContent = 'Ticket Invalidated';
-      
       const event = await getEvent(t.eventId);
-      document.getElementById('modal-holder-name').textContent = t.holderName;
-      document.getElementById('modal-event-title').textContent = event ? event.title : 'Unknown Event';
-      document.getElementById('modal-checkin-ratio').textContent = `Revoked (0 of ${t.totalGuests})`;
-      
-      // Hide entry widgets
-      document.getElementById('modal-admission-form-wrapper').classList.add('hidden');
-      document.getElementById('modal-success-screen').classList.remove('hidden');
-      document.getElementById('modal-success-msg').textContent = 'This ticket has been revoked by an administrator and venue access is denied.';
-      document.getElementById('btn-close-success').textContent = 'Scan Next';
+      const eventTitle = event ? event.title : 'Unknown Event';
+      showOutcomeScreen(
+        'error',
+        'Ticket Revoked',
+        'This ticket has been revoked by administrators and venue access is denied.',
+        t.holderName,
+        eventTitle,
+        `Revoked (0 of ${t.totalGuests})`
+      );
       currentScannedTicket = null;
       return;
     }
@@ -1103,33 +1353,28 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Fill details
     const event = await getEvent(t.eventId);
+    const eventTitle = event ? event.title : 'Unknown Event';
     document.getElementById('modal-holder-name').textContent = t.holderName;
-    document.getElementById('modal-event-title').textContent = event ? event.title : 'Unknown Event';
+    document.getElementById('modal-event-title').textContent = eventTitle;
     document.getElementById('modal-checkin-ratio').textContent = `${t.checkedInCount} of ${t.totalGuests} Admitted`;
 
     const remaining = t.totalGuests - t.checkedInCount;
     document.getElementById('modal-remaining-text').textContent = `${remaining} spot(s) remaining on this ticket.`;
 
     if (remaining <= 0) {
-      // Already fully checked in
-      statusHeader.className = 'modal-status-header error';
-      statusIcon.textContent = '✕';
-      statusTitle.textContent = 'Ticket Fully Redeemed';
-      
-      document.getElementById('modal-admission-form-wrapper').classList.add('hidden');
-      document.getElementById('modal-success-screen').classList.remove('hidden');
-      document.getElementById('modal-success-msg').textContent = 'All guests permitted by this e-ticket have already entered the event venue.';
-      document.getElementById('btn-close-success').textContent = 'Scan Next';
+      showOutcomeScreen(
+        'redeemed',
+        'Already Checked In',
+        'All guests permitted by this ticket have already entered the event venue.',
+        t.holderName,
+        eventTitle,
+        `${t.checkedInCount} of ${t.totalGuests}`
+      );
     } else {
       // Standard group entry flow
-      statusHeader.className = 'modal-status-header success';
-      statusIcon.textContent = '✓';
-      statusTitle.textContent = 'Ticket Verified';
-      
       // Initialize counter inputs
       admitGuestsInput.value = remaining; // Default to admitting all remaining guests
       admitGuestsInput.max = remaining;
-      document.getElementById('btn-close-success').textContent = 'Scan Next';
     }
   }
 
@@ -1137,6 +1382,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     validationModal.classList.remove('show');
     currentScannedTicket = null;
     
+    // Reset outcome visibility
+    const outcomeScreen = document.getElementById('modal-outcome-screen');
+    const validationBody = document.getElementById('modal-validation-body');
+    const statusHeader = document.getElementById('modal-header-status');
+    if (outcomeScreen) outcomeScreen.classList.add('hidden');
+    if (validationBody) validationBody.classList.remove('hidden');
+    if (statusHeader) statusHeader.classList.remove('hidden');
+
+    const modalContent = document.querySelector('#scan-validation-modal .modal-content');
+    if (modalContent) {
+      modalContent.classList.remove('has-outcome');
+    }
+
     // Restart scanner
     if (viewScanner.classList.contains('active-view')) {
       resumeCameraScanner();
@@ -1226,8 +1484,31 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // 9. STAFF AND SECURITY ADMINISTRATIVE GATEWAYS
+  async function populateStaffEventSelect() {
+    const select = document.getElementById('staff-event-select');
+    if (!select) return;
+    const events = await getEvents();
+    select.innerHTML = '';
+    
+    if (events.length === 0) {
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.text = '-- No Events Available --';
+      select.appendChild(opt);
+      return;
+    }
+    
+    events.forEach(e => {
+      const opt = document.createElement('option');
+      opt.value = e.eventId;
+      opt.text = e.title;
+      select.appendChild(opt);
+    });
+  }
+
   async function initAdminConsole() {
     await renderStaffList();
+    await populateStaffEventSelect();
     
     const createStaffForm = document.getElementById('create-staff-form');
     if (createStaffForm && !createStaffForm.dataset.listener) {
@@ -1236,7 +1517,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         e.preventDefault();
         const user = document.getElementById('staff-username-input').value;
         const pass = document.getElementById('staff-password-input').value;
-        const res = await createStaffAccount(user, pass);
+        const eventId = document.getElementById('staff-event-select').value;
+        
+        if (!eventId) {
+          showToast('Please select or create an event to assign to staff.', 'error');
+          return;
+        }
+
+        const res = await createStaffAccount(user, pass, eventId);
         if (res.success) {
           showToast(res.message, 'success');
           createStaffForm.reset();
@@ -1259,19 +1547,207 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
     
-    accounts.forEach(acc => {
+    for (const acc of accounts) {
       const li = document.createElement('li');
       li.className = 'staff-list-item';
+      
+      let eventLabel = acc.eventId ? `Event ID: ${acc.eventId}` : 'All Events';
+      if (acc.eventId) {
+        const ev = await getEvent(acc.eventId);
+        if (ev) eventLabel = ev.title;
+      }
+
       li.innerHTML = `
-        <span class="staff-username">👤 ${acc.username}</span>
+        <div style="display: flex; flex-direction: column; gap: 0.2rem; align-items: flex-start; text-align: left;">
+          <span class="staff-username" style="font-weight: 700; color: var(--text-main);">👤 ${acc.username}</span>
+          <span style="font-size: 0.75rem; color: var(--color-accent); font-weight: 600;">📍 ${eventLabel}</span>
+        </div>
         <span class="staff-pw-hint">PW: <code>${acc.password}</code></span>
       `;
       staffListEl.appendChild(li);
-    });
+    }
   }
 
   function initStaffConsole() {
     console.log("Gate scanner initialized for logged-in security staff.");
+  }
+
+  // 9B. MASTER ADMIN PORTAL CONTROLLER
+  async function initMasterAdminConsole() {
+    const tableBody = document.getElementById('master-vendors-table-body');
+    const totalVendorsEl = document.getElementById('master-kpi-total-vendors');
+    const pendingApprovalsEl = document.getElementById('master-kpi-pending-approvals');
+    const totalEventsEl = document.getElementById('master-kpi-total-events');
+    const inspectCard = document.getElementById('master-vendor-events-card');
+    const inspectTitle = document.getElementById('master-inspect-vendor-name');
+    const inspectTableBody = document.getElementById('master-vendor-events-table-body');
+    const noEventsPlaceholder = document.getElementById('no-vendor-events-placeholder');
+    const btnCloseInspect = document.getElementById('btn-close-inspect-events');
+
+    if (!tableBody) return;
+
+    // Load vendors and events count
+    const vendors = await getVendors();
+    const allEvents = await getEvents(); // Platform admin sees all events
+
+    // Set telemetry KPIs
+    if (totalVendorsEl) totalVendorsEl.textContent = vendors.length;
+    const pendingCount = vendors.filter(v => v.status === 'pending').length;
+    if (pendingApprovalsEl) pendingApprovalsEl.textContent = pendingCount;
+    if (totalEventsEl) totalEventsEl.textContent = allEvents.length;
+
+    // Populate vendors directory ledger
+    tableBody.innerHTML = '';
+    if (vendors.length === 0) {
+      tableBody.innerHTML = `
+        <tr>
+          <td colspan="6" class="text-center" style="padding: 2rem; color: var(--text-muted);">
+            No vendors registered on the platform yet.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    vendors.forEach(v => {
+      const tr = document.createElement('tr');
+      
+      // Status Badge Styling
+      let statusClass = 'status-pending';
+      if (v.status === 'active') statusClass = 'status-completed'; // Green
+      else if (v.status === 'suspended') statusClass = 'status-invalidated'; // Red
+
+      const createdDate = v.createdAt ? new Date(v.createdAt).toLocaleDateString() : 'N/A';
+
+      // Action buttons
+      let actionButtons = '';
+      if (v.status === 'pending') {
+        actionButtons = `
+          <button class="btn btn-success btn-sm btn-approve-vendor" data-id="${v.vendorId}" style="background: var(--color-success); color: white; border: none; padding: 0.35rem 0.65rem; border-radius: 6px; font-weight: 700; cursor: pointer; margin-right: 0.25rem;">Approve</button>
+        `;
+      } else if (v.status === 'active') {
+        actionButtons = `
+          <button class="btn btn-warning btn-sm btn-suspend-vendor" data-id="${v.vendorId}" style="background: var(--color-warning); color: white; border: none; padding: 0.35rem 0.65rem; border-radius: 6px; font-weight: 700; cursor: pointer; margin-right: 0.25rem;">Suspend</button>
+        `;
+      } else if (v.status === 'suspended') {
+        actionButtons = `
+          <button class="btn btn-success btn-sm btn-approve-vendor" data-id="${v.vendorId}" style="background: var(--color-success); color: white; border: none; padding: 0.35rem 0.65rem; border-radius: 6px; font-weight: 700; cursor: pointer; margin-right: 0.25rem;">Activate</button>
+        `;
+      }
+
+      actionButtons += `
+        <button class="btn btn-secondary btn-sm btn-inspect-vendor" data-id="${v.vendorId}" data-name="${v.companyName}" style="padding: 0.35rem 0.65rem; border-radius: 6px; font-weight: 700; cursor: pointer; margin-right: 0.25rem;">Inspect</button>
+        <button class="btn btn-danger btn-sm btn-delete-vendor" data-id="${v.vendorId}" style="background: var(--color-danger); color: white; border: none; padding: 0.35rem 0.65rem; border-radius: 6px; font-weight: 700; cursor: pointer;">Delete</button>
+      `;
+
+      tr.innerHTML = `
+        <td>
+          <div style="font-weight: 700; color: var(--text-main);">${v.companyName}</div>
+          <div style="font-size: 0.75rem; color: var(--text-muted);">ID: ${v.vendorId}</div>
+        </td>
+        <td style="font-weight: 600; color: var(--text-main);">${v.ownerName}</td>
+        <td>
+          <div>📧 ${v.email}</div>
+          <div style="font-size: 0.75rem; color: var(--text-muted);">📞 ${v.phone}</div>
+        </td>
+        <td style="color: var(--text-muted);">${createdDate}</td>
+        <td>
+          <span class="ticket-status-tag ${statusClass}" style="text-transform: capitalize; padding: 0.25rem 0.5rem; font-size: 0.75rem;">${v.status}</span>
+        </td>
+        <td>
+          <div style="display: flex; align-items: center;">${actionButtons}</div>
+        </td>
+      `;
+
+      tableBody.appendChild(tr);
+    });
+
+    // Bind action buttons
+    document.querySelectorAll('.btn-approve-vendor').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const id = e.target.getAttribute('data-id');
+        const res = await updateVendorStatus(id, 'active');
+        if (res.success) {
+          showToast(res.message, 'success');
+          await initMasterAdminConsole();
+        } else {
+          showToast(res.message, 'error');
+        }
+      });
+    });
+
+    document.querySelectorAll('.btn-suspend-vendor').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const id = e.target.getAttribute('data-id');
+        const res = await updateVendorStatus(id, 'suspended');
+        if (res.success) {
+          showToast(res.message, 'warning');
+          await initMasterAdminConsole();
+        } else {
+          showToast(res.message, 'error');
+        }
+      });
+    });
+
+    document.querySelectorAll('.btn-delete-vendor').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        if (confirm('Are you sure you want to delete this vendor and all their staff accounts?')) {
+          const id = e.target.getAttribute('data-id');
+          const res = await deleteVendor(id);
+          if (res.success) {
+            showToast(res.message, 'success');
+            if (inspectCard) inspectCard.classList.add('hidden');
+            await initMasterAdminConsole();
+          } else {
+            showToast(res.message, 'error');
+          }
+        }
+      });
+    });
+
+    document.querySelectorAll('.btn-inspect-vendor').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const id = e.target.getAttribute('data-id');
+        const name = e.target.getAttribute('data-name');
+        
+        if (inspectTitle) inspectTitle.textContent = `Inspect Events: ${name}`;
+        if (inspectCard) {
+          inspectCard.classList.remove('hidden');
+          inspectCard.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        const events = await getVendorEvents(id);
+        if (inspectTableBody) {
+          inspectTableBody.innerHTML = '';
+          if (events.length === 0) {
+            if (noEventsPlaceholder) noEventsPlaceholder.classList.remove('hidden');
+          } else {
+            if (noEventsPlaceholder) noEventsPlaceholder.classList.add('hidden');
+            events.forEach(ev => {
+              const tr = document.createElement('tr');
+              const eventDate = ev.dateTime ? new Date(ev.dateTime).toLocaleString() : 'N/A';
+              tr.innerHTML = `
+                <td style="font-weight: 700; color: var(--text-main);">${ev.title}</td>
+                <td style="color: var(--text-muted);">${ev.venue}</td>
+                <td>${eventDate}</td>
+                <td style="font-weight: 600;">${ev.maxCapacity}</td>
+                <td style="font-family: monospace; font-size: 0.8rem; color: var(--color-accent);">${ev.eventId}</td>
+              `;
+              inspectTableBody.appendChild(tr);
+            });
+          }
+        }
+      });
+    });
+
+    if (btnCloseInspect) {
+      if (!btnCloseInspect.dataset.listener) {
+        btnCloseInspect.dataset.listener = 'true';
+        btnCloseInspect.addEventListener('click', () => {
+          if (inspectCard) inspectCard.classList.add('hidden');
+        });
+      }
+    }
   }
 
 });

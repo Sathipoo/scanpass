@@ -24,6 +24,7 @@
 
       <!-- Real-time Connectivity Controller -->
       <div class="network-badge-container">
+        <button id="btn-global-theme-toggle" class="btn btn-secondary btn-sm" style="padding: 0.35rem 0.75rem; border-radius: 20px; font-size: 0.75rem; font-weight: 700; margin-right: 0.5rem;" title="Toggle Light/Dark Theme">🌓 Theme</button>
         <label class="switch-container" title="Simulate Network State">
           <span class="switch-label">Simulate Network:</span>
           <div class="switch-wrapper">
@@ -41,6 +42,7 @@
       <nav class="header-nav hidden" id="app-navigation">
         <button id="nav-btn-dashboard" class="nav-link active">Dashboard</button>
         <button id="nav-btn-events" class="nav-link">Events</button>
+        <button id="nav-btn-vendors" class="nav-link">Vendors</button>
         <button id="nav-btn-scanner" class="nav-link">QR Scanner</button>
         <button id="nav-btn-logout" class="nav-link text-danger">Logout</button>
       </nav>
@@ -49,6 +51,122 @@
     <!-- Main Container where views are loaded dynamically -->
     <main id="app" class="main-container">
       
+      <!-- VIEW -1: MARKETING LANDING PAGE -->
+      <section id="view-landing" class="app-view">
+        <div class="landing-hero-container">
+          <div class="landing-hero-text">
+            <span class="hero-tagline">⚡ Multi-Vendor Ticketing Platform</span>
+            <h1 class="hero-title">Ticketing & Gate Verification <span class="gradient-text">Reimagined</span></h1>
+            <p class="hero-description">
+              ScanPass empowers events of any scale. Create custom events, manage tickets in real-time, register security staff, and perform high-speed QR check-ins—even in complete offline mode.
+            </p>
+            <div class="hero-cta-buttons">
+              <a href="#register-vendor-section" id="btn-hero-register" class="btn btn-primary">Get Started as Vendor</a>
+              <button id="btn-landing-login" class="btn btn-secondary">Login to Console</button>
+            </div>
+          </div>
+          <div class="landing-hero-visual">
+            <div class="visual-mockup-card glass-card">
+              <div class="mockup-header">
+                <span class="dot red"></span>
+                <span class="dot yellow"></span>
+                <span class="dot green"></span>
+                <span class="mockup-url">scanpass.app/dashboard</span>
+              </div>
+              <div class="mockup-body">
+                <div class="mockup-kpi">
+                  <div class="mockup-kpi-item">
+                    <span class="lbl">Checked In</span>
+                    <span class="val">142 / 200</span>
+                  </div>
+                  <div class="mockup-kpi-item">
+                    <span class="lbl">Scan Speed</span>
+                    <span class="val">&lt; 0.2s</span>
+                  </div>
+                </div>
+                <div class="mockup-chart-stub">
+                  <div class="chart-bar" style="height: 40%"></div>
+                  <div class="chart-bar" style="height: 60%"></div>
+                  <div class="chart-bar" style="height: 85%"></div>
+                  <div class="chart-bar" style="height: 95%"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Features Grid -->
+        <div class="landing-features-grid">
+          <div class="glass-card feature-card">
+            <span class="feature-icon">📊</span>
+            <h3>Real-Time Telemetry</h3>
+            <p>Monitor event admissions, ticket states, and registration stats as they happen in real time.</p>
+          </div>
+          <div class="glass-card feature-card">
+            <span class="feature-icon">📶</span>
+            <h3>100% Offline Capability</h3>
+            <p>Unstable venue network? Firestore persistent caching stores check-in logs locally and syncs automatically.</p>
+          </div>
+          <div class="glass-card feature-card">
+            <span class="feature-icon">🛡️</span>
+            <h3>Scoped Security Staff</h3>
+            <p>Generate independent staff scanners assigned specifically to individual events to secure gates.</p>
+          </div>
+          <div class="glass-card feature-card">
+            <span class="feature-icon">📱</span>
+            <h3>Universal Apple-Wallet Passes</h3>
+            <p>Beautiful client e-ticket URLs featuring high-contrast dynamic QR codes for swift scanning.</p>
+          </div>
+        </div>
+
+        <!-- Registration & Signup Form Section -->
+        <div id="register-vendor-section" class="landing-signup-container">
+          <div class="glass-card signup-card">
+            <div class="signup-header">
+              <span class="signup-icon">🏢</span>
+              <h2 class="signup-title">Vendor Registration</h2>
+              <p class="signup-subtitle">Register your business to begin hosting and issuing event e-tickets.</p>
+            </div>
+            
+            <form id="vendor-signup-form" class="form-stack">
+              <div class="form-group-split">
+                <div class="form-group">
+                  <label for="vendor-company-name">Company Name</label>
+                  <input type="text" id="vendor-company-name" placeholder="e.g. Vivid Events Ltd" class="form-control" required />
+                </div>
+                <div class="form-group">
+                  <label for="vendor-owner-name">Owner / Manager</label>
+                  <input type="text" id="vendor-owner-name" placeholder="e.g. Sathish Kumar" class="form-control" required />
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="vendor-email">Corporate Email Address</label>
+                <input type="email" id="vendor-email" placeholder="e.g. business@vividevents.com" class="form-control" required autocomplete="username" />
+              </div>
+              <div class="form-group">
+                <label for="vendor-phone">Contact Phone Number</label>
+                <input type="tel" id="vendor-phone" placeholder="e.g. +91 98765 43210" class="form-control" required />
+              </div>
+              
+              <div id="signup-error-msg" class="signup-error hidden"></div>
+              
+              <button type="submit" id="btn-vendor-signup-submit" class="btn btn-primary btn-block">Register & Receive Access Link</button>
+            </form>
+            <div class="signup-footer-link">
+              Already registered? <button id="btn-signup-to-login" class="link-btn">Sign in to console</button>
+            </div>
+          </div>
+        </div>
+        <!-- Landing Page Footer -->
+        <footer class="landing-footer-container" style="margin-top: 4rem; padding-top: 2rem; border-top: 1px solid var(--card-border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; font-size: 0.85rem; color: var(--text-muted);">
+          <span>© 2026 ScanPass Inc. All rights reserved.</span>
+          <div style="display: flex; gap: 1.5rem;">
+            <button id="link-landing-to-kt" class="link-btn" style="font-size: 0.85rem;">Gate Staff Training Manual (KT)</button>
+            <a href="#register-vendor-section" class="link-btn" style="text-decoration: underline;">Become a Partner</a>
+          </div>
+        </footer>
+      </section>
+
       <!-- VIEW 0: PORTAL LOGIN -->
       <section id="view-login" class="app-view">
         <div class="login-container">
@@ -75,6 +193,10 @@
               
               <button type="submit" id="btn-login-submit" class="btn btn-primary btn-block">Sign In</button>
             </form>
+            
+            <div class="login-footer-link" style="margin-top: 1.5rem; text-align: center; font-size: 0.85rem; color: var(--text-muted);">
+              New to ScanPass? <button id="btn-login-to-signup" class="link-btn" style="background: transparent; border: none; color: var(--color-accent); font-weight: 700; cursor: pointer; text-decoration: underline; padding: 0;">Register your company</button>
+            </div>
 
           </div>
         </div>
@@ -145,6 +267,12 @@
                 <div class="form-group">
                   <label for="staff-password-input">Staff Password</label>
                   <input type="password" id="staff-password-input" placeholder="Password" class="form-control" required />
+                </div>
+                <div class="form-group">
+                  <label for="staff-event-select">Assign to Event</label>
+                  <select id="staff-event-select" class="form-control" required>
+                    <!-- Dynamically populated -->
+                  </select>
                 </div>
                 <button type="submit" id="btn-create-staff" class="btn btn-secondary btn-block">Create Staff Account</button>
               </form>
@@ -420,7 +548,7 @@
                 <h3 class="modal-status-title" id="modal-status-title">Ticket Verified</h3>
               </div>
               
-              <div class="modal-body">
+              <div class="modal-body" id="modal-validation-body">
                 <div class="modal-ticket-details">
                   <div class="detail-row">
                     <span class="detail-label">Ticket Holder:</span>
@@ -450,13 +578,32 @@
                     <button id="btn-cancel-admission" class="btn btn-secondary btn-block">Cancel</button>
                   </div>
                 </div>
-
-                <div class="modal-success-screen hidden" id="modal-success-screen">
-                  <div class="success-chime-effect">🎉</div>
-                  <p class="success-message" id="modal-success-msg">Successfully Checked In!</p>
-                  <button id="btn-close-success" class="btn btn-primary btn-block">Scan Next Ticket</button>
-                </div>
               </div>
+
+              <!-- High-Impact Full-Screen Outcome Overlay Screen -->
+              <div id="modal-outcome-screen" class="modal-outcome-screen hidden">
+                <div class="outcome-chime" id="outcome-screen-chime">🎉</div>
+                <h2 class="outcome-title" id="outcome-screen-title">Access Admitted</h2>
+                <p class="outcome-message" id="outcome-screen-message">Successfully checked in 2 guests!</p>
+                
+                <div class="outcome-meta-card">
+                  <div class="outcome-meta-row">
+                    <span class="outcome-meta-label">Holder:</span>
+                    <span class="outcome-meta-value" id="outcome-screen-holder">Jane Doe</span>
+                  </div>
+                  <div class="outcome-meta-row">
+                    <span class="outcome-meta-label">Event:</span>
+                    <span class="outcome-meta-value" id="outcome-screen-event">Sunset Beats</span>
+                  </div>
+                  <div class="outcome-meta-row">
+                    <span class="outcome-meta-label">Admitted:</span>
+                    <span class="outcome-meta-value" id="outcome-screen-admitted">2 of 4</span>
+                  </div>
+                </div>
+                
+                <button id="btn-outcome-close" class="btn btn-primary btn-block">Scan Next Ticket</button>
+              </div>
+
             </div>
           </div>
         </div>
@@ -522,7 +669,191 @@
         </div>
       </section>
 
+      <!-- VIEW 4: STAFF KNOWLEDGE TRANSFER (KT) TRAINING MANUAL -->
+      <section id="view-kt" class="app-view">
+        <div class="kt-container" style="max-width: 800px; margin: 0 auto; display: flex; flex-direction: column; gap: 2rem;">
+          <div class="glass-card">
+            <h1 class="view-main-title" style="font-size: 2rem; font-weight: 800; color: var(--text-light); margin-bottom: 0.5rem;">Gate Staff Training & KT Manual</h1>
+            <p class="view-main-subtitle" style="font-size: 0.95rem; color: var(--text-muted); margin-bottom: 1.5rem;">Understanding the ScanPass gate flow, ticket admissions, and outcome states.</p>
+            
+            <div class="kt-section">
+              <h3 class="form-heading">1. Accessing the Gate Console</h3>
+              <p>Staff members must sign in using the credentials generated by their Event Vendor. Staff accounts are explicitly scoped and locked to a single event for gate security.</p>
+            </div>
+
+            <hr class="card-divider" />
+
+            <div class="kt-section">
+              <h3 class="form-heading">2. The 4 Scanner Outcome States</h3>
+              <p>When you scan a ticket, the scanner drawer will display one of the following full-screen feedback overlays. Pay close attention to colors and titles before admitting guests:</p>
+              
+              <div class="kt-outcomes-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-top: 1rem;">
+                <!-- Success State -->
+                <div class="outcome-preview-card success" style="background: rgba(16, 185, 129, 0.08); border: 1.5px solid var(--color-success); border-radius: var(--radius-sm); padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                  <strong style="color: var(--color-success); font-size: 1rem;">🎉 Access Admitted</strong>
+                  <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0;"><strong>Green Card</strong>. The ticket is verified. Select the entering guest count and confirm admission. Once submitted, guests may pass.</p>
+                </div>
+                <!-- Invalid State -->
+                <div class="outcome-preview-card error" style="background: rgba(239, 68, 68, 0.08); border: 1.5px solid var(--color-danger); border-radius: var(--radius-sm); padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                  <strong style="color: var(--color-danger); font-size: 1rem;">✕ Invalid / Revoked</strong>
+                  <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0;"><strong>Red Card</strong>. The scanned code was not found, or the administrator has invalidated/refunded this ticket. Do NOT admit guests.</p>
+                </div>
+                <!-- Mismatch State -->
+                <div class="outcome-preview-card mismatch" style="background: rgba(245, 158, 11, 0.08); border: 1.5px solid var(--color-warning); border-radius: var(--radius-sm); padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                  <strong style="color: var(--color-warning); font-size: 1rem;">⚠️ Event Mismatch</strong>
+                  <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0;"><strong>Orange Card</strong>. The staff is assigned to Event A, but scanned a ticket for Event B. Access is denied; direct the customer to their correct gate.</p>
+                </div>
+                <!-- Redeemed State -->
+                <div class="outcome-preview-card redeemed" style="background: rgba(139, 92, 246, 0.08); border: 1.5px solid hsl(258, 90%, 66%); border-radius: var(--radius-sm); padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                  <strong style="color: hsl(258, 90%, 66%); font-size: 1rem;">⏰ Fully Redeemed</strong>
+                  <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0;"><strong>Purple Card</strong>. All guests permitted under this ticket have already entered. Deny entry unless they have another valid ticket.</p>
+                </div>
+              </div>
+            </div>
+
+            <hr class="card-divider" />
+
+            <div class="kt-section">
+              <h3 class="form-heading">3. Offline Scanning Mode</h3>
+              <p>ScanPass functions fully offline. If the venue loses internet connection, the system will save ticket scan logs in local storage cache. A warning badge will display showing the number of queued offline scans. The system will sync automatically once connectivity is restored.</p>
+            </div>
+
+            <hr class="card-divider" />
+            
+            <button id="btn-kt-back" class="btn btn-secondary btn-block">Back to Landing Page</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 5: MASTER ADMIN VENDOR CONSOLE -->
+      <section id="view-vendors" class="app-view">
+        <div class="dashboard-header-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; gap: 1rem; flex-wrap: wrap;">
+          <div>
+            <h1 class="view-main-title" style="font-size: 1.85rem; font-weight: 800; color: var(--text-light); margin: 0;">Master Platform Console</h1>
+            <p class="view-main-subtitle" style="font-size: 0.85rem; color: var(--text-muted); margin: 0.25rem 0 0 0;">Approve vendor profiles, see active tenants, and inspect cross-company events.</p>
+          </div>
+        </div>
+
+        <!-- Master Telemetry Stats Grid -->
+        <div class="kpi-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+          <div class="glass-card kpi-card">
+            <span class="kpi-label">Total Vendors</span>
+            <span class="kpi-value" id="master-kpi-total-vendors" style="color: var(--color-primary);">0</span>
+            <span class="kpi-subtext">Onboarded tenants</span>
+          </div>
+          <div class="glass-card kpi-card">
+            <span class="kpi-label">Pending Approvals</span>
+            <span class="kpi-value" id="master-kpi-pending-approvals" style="color: var(--color-warning);">0</span>
+            <span class="kpi-subtext">Action required</span>
+          </div>
+          <div class="glass-card kpi-card">
+            <span class="kpi-label">Platform Events</span>
+            <span class="kpi-value" id="master-kpi-total-events" style="color: var(--color-accent);">0</span>
+            <span class="kpi-subtext">Live ticketing campaigns</span>
+          </div>
+        </div>
+
+        <div class="dashboard-grid">
+          <!-- LEFT SIDE: Vendors Ledger Table -->
+          <div class="dashboard-main" style="grid-column: 1 / -1; display: flex; flex-direction: column; gap: 2rem;">
+            
+            <div class="glass-card">
+              <h2 class="card-title">Registered Vendors Directory</h2>
+              <p class="card-subtitle">Approve newly registered corporate accounts to authorize logins.</p>
+              
+              <div class="table-container" style="margin-top: 1.5rem;">
+                <table class="tickets-table" style="width: 100%;">
+                  <thead>
+                    <tr>
+                      <th>Company Details</th>
+                      <th>Owner / Manager</th>
+                      <th>Email & Phone</th>
+                      <th>Onboarded Date</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="master-vendors-table-body">
+                    <!-- Populated dynamically -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Inspect Vendor Events Drawer/Container -->
+            <div class="glass-card hidden" id="master-vendor-events-card">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <div>
+                  <h2 class="card-title" id="master-inspect-vendor-name">Inspect Events</h2>
+                  <p class="card-subtitle">Showing live ticketing events mapped under this vendor profile.</p>
+                </div>
+                <button id="btn-close-inspect-events" class="btn btn-secondary btn-sm">Close Inspection</button>
+              </div>
+
+              <div class="table-container">
+                <table class="tickets-table">
+                  <thead>
+                    <tr>
+                      <th>Event Name</th>
+                      <th>Venue</th>
+                      <th>Date & Time</th>
+                      <th>Max Capacity</th>
+                      <th>Event ID</th>
+                    </tr>
+                  </thead>
+                  <tbody id="master-vendor-events-table-body">
+                    <!-- Populated dynamically -->
+                  </tbody>
+                </table>
+                <div id="no-vendor-events-placeholder" class="no-data-placeholder hidden">
+                  <span class="placeholder-icon">📅</span>
+                  <p>This vendor has not created any events yet.</p>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
     </main>
+
+    <!-- Email Simulation Mockup Modal (Simulated SMTP Notification) -->
+    <div id="email-simulator-modal" class="email-modal-overlay">
+      <div class="email-mockup-card glass-card">
+        <div class="email-mockup-header">
+          <div class="email-header-top">
+            <span class="email-badge">SMTP Simulator</span>
+            <span class="email-time">Just Now</span>
+          </div>
+          <h3 class="email-subject">📩 Welcome to ScanPass! Your Vendor Credentials</h3>
+          <div class="email-sender-info">
+            <span class="email-sender">From: <strong>onboarding@scanpass.app</strong></span>
+            <span class="email-receiver" id="email-simulator-to">To: sathish@example.com</span>
+          </div>
+        </div>
+        <div class="email-mockup-body">
+          <p>Hello <strong id="email-simulator-owner">Sathish</strong>,</p>
+          <p>Your business profile for <strong id="email-simulator-company">Vivid Events</strong> is now active on the ScanPass platform! We've created your multi-vendor console credentials.</p>
+          <div class="credentials-display-box">
+            <div class="cred-row">
+              <span class="cred-lbl">Username (Email):</span>
+              <strong id="email-simulator-username" class="cred-val">sathish@example.com</strong>
+            </div>
+            <div class="cred-row">
+              <span class="cred-lbl">Temporary Password:</span>
+              <span class="password-mask-group">
+                <code id="email-simulator-password" class="cred-val">pass-abcde</code>
+                <button id="btn-copy-simulated-password" class="btn-copy-icon" title="Copy Password">📋</button>
+              </span>
+            </div>
+          </div>
+          <p class="warning-text">⚠️ <em>For security, change your temporary password in your console profile immediately upon logging in.</em></p>
+          <p>Click below to copy your temporary password and sign in instantly.</p>
+          <button id="btn-email-modal-login" class="btn btn-accent btn-block">Copy Password & Open Login</button>
+        </div>
+      </div>
+    </div>
 
     <!-- Global Floating Toast Notification Container -->
     <div id="toast-container" class="toast-container"></div>

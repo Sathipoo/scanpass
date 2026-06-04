@@ -135,14 +135,60 @@ export async function initDb() {
       }
     }
 
-    // 4. Seed staff collection
+    // 4. Seed staff & vendor collections
     const staffSnap = await getDocs(collection(db, 'staff'));
     if (staffSnap.empty) {
-      const defaultStaff = [
-        { username: 'staff1', password: 'staff123', createdAt: new Date().toISOString() }
+      // Create default active vendor
+      const defaultVendorDoc = {
+        vendorId: 'VND-101',
+        companyName: 'Vivid Events Corp',
+        ownerName: 'Alex Rivers',
+        email: 'hello@vividevents.com',
+        phone: '+1 555-0199',
+        status: 'active',
+        createdAt: new Date().toISOString()
+      };
+      await setDoc(doc(db, 'vendors', 'VND-101'), defaultVendorDoc);
+
+      // Create default pending vendor
+      const pendingVendorDoc = {
+        vendorId: 'VND-PENDING',
+        companyName: 'Pending Events Ltd',
+        ownerName: 'Sarah Jenkins',
+        email: 'pending@eventcorp.com',
+        phone: '+1 555-0144',
+        status: 'pending',
+        createdAt: new Date().toISOString()
+      };
+      await setDoc(doc(db, 'vendors', 'VND-PENDING'), pendingVendorDoc);
+
+      const defaultAuth = [
+        {
+          username: 'hello@vividevents.com',
+          password: 'vendor123',
+          role: 'vendor',
+          vendorId: 'VND-101',
+          createdAt: new Date().toISOString()
+        },
+        {
+          username: 'pending@eventcorp.com',
+          password: 'pending123',
+          role: 'vendor',
+          vendorId: 'VND-PENDING',
+          createdAt: new Date().toISOString()
+        },
+        {
+          username: 'staff1',
+          password: 'staff123',
+          role: 'staff',
+          vendorId: 'VND-101',
+          eventId: 'EVT-001',
+          createdAt: new Date().toISOString()
+        }
       ];
-      for (const st of defaultStaff) {
-        await setDoc(doc(db, 'staff', st.username.toLowerCase().trim()), st);
+
+      for (const auth of defaultAuth) {
+        await setDoc(doc(db, 'staff', auth.username.toLowerCase().trim()), auth);
       }
     }
 
@@ -195,9 +241,21 @@ export function saveCurrentVendor(vendor) {
 // Event Management
 export async function getEvents() {
   try {
-    const q = query(collection(db, 'events'), orderBy('createdAt', 'desc'));
+    const session = getCurrentSession();
+    if (!session) return [];
+
+    let q;
+    // Platform admin sees all events, vendors see only their events
+    if (session.role === 'admin') {
+      q = query(collection(db, 'events'));
+    } else {
+      q = query(collection(db, 'events'), where('vendorId', '==', session.vendorId));
+    }
     const snap = await getDocs(q);
-    return snap.docs.map(doc => doc.data());
+    const list = snap.docs.map(doc => doc.data());
+    // Sort in memory to avoid requiring composite indexes
+    list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    return list;
   } catch (err) {
     console.error("Failed to fetch events from Firestore:", err);
     return [];
@@ -205,11 +263,11 @@ export async function getEvents() {
 }
 
 export async function createEvent(title, venue, dateTime, maxCapacity, mapsUrl) {
-  const vendor = getCurrentVendor();
+  const session = getCurrentSession();
   const eventId = `EVT-${Math.floor(100000 + Math.random() * 900000)}`;
   const newEvent = {
     eventId,
-    vendorId: vendor ? vendor.vendorId : 'VND-TEMP',
+    vendorId: session ? session.vendorId : 'VND-TEMP',
     title,
     venue,
     dateTime,
@@ -319,6 +377,21 @@ export async function checkInTicket(ticketId, admitCount, staffId = 'Staff-Scann
 
   const ticket = ticketSnap.data();
 
+  // Enforce staff authorized event checking
+  if (staffId && staffId !== 'Staff-Scanner') {
+    const staffDocRef = doc(db, 'staff', staffId.toLowerCase().trim());
+    const staffSnap = await getDoc(staffDocRef);
+    if (staffSnap.exists()) {
+      const staffData = staffSnap.data();
+      if (staffData.role === 'staff' && staffData.eventId && staffData.eventId !== ticket.eventId) {
+        return { 
+          success: false, 
+          message: `Event Mismatch: Authorized only for Event ID: ${staffData.eventId}, but this ticket is for Event ID: ${ticket.eventId}` 
+        };
+      }
+    }
+  }
+
   if (ticket.status === 'invalidated') {
     return { success: false, message: 'This ticket has been invalidated and cannot be checked in.' };
   }
@@ -395,16 +468,31 @@ export async function clearDb() {
 // Authentication and Security Staff Accounts
 export async function getStaffAccounts() {
   try {
-    const snap = await getDocs(collection(db, 'staff'));
-    return snap.docs.map(doc => doc.data());
+    const session = getCurrentSession();
+    if (!session) return [];
+
+    let q;
+    if (session.role === 'admin') {
+      q = query(collection(db, 'staff'));
+    } else {
+      q = query(collection(db, 'staff'), where('vendorId', '==', session.vendorId));
+    }
+    const snap = await getDocs(q);
+    const list = snap.docs.map(doc => doc.data());
+    // Only return security staff, not vendor admin accounts
+    return list.filter(acc => acc.role === 'staff' || !acc.role);
   } catch (err) {
     console.error("Failed to fetch staff list:", err);
     return [];
   }
 }
 
-export async function createStaffAccount(username, password) {
+export async function createStaffAccount(username, password, eventId = null) {
   const lowerUser = username.toLowerCase().trim();
+  const session = getCurrentSession();
+  if (!session) {
+    return { success: false, message: 'Unauthorized session.' };
+  }
 
   if (lowerUser === 'admin') {
     return { success: false, message: 'Cannot use reserved username "admin".' };
@@ -420,6 +508,9 @@ export async function createStaffAccount(username, password) {
   const newStaff = {
     username: username.trim(),
     password,
+    role: 'staff',
+    vendorId: session.vendorId,
+    eventId: eventId,
     createdAt: new Date().toISOString()
   };
 
@@ -427,26 +518,103 @@ export async function createStaffAccount(username, password) {
   return { success: true, message: `Staff account "${username}" created.`, staff: newStaff };
 }
 
+export async function registerVendor(companyName, ownerName, email, phone) {
+  try {
+    const lowerEmail = email.toLowerCase().trim();
+    
+    // Check if account already exists in auth
+    const authDocRef = doc(db, 'staff', lowerEmail);
+    const authSnap = await getDoc(authDocRef);
+    if (authSnap.exists()) {
+      return { success: false, message: 'An account is already registered with this email address.' };
+    }
+
+    const vendorId = `VND-${Math.floor(100000 + Math.random() * 900000)}`;
+    const tempPassword = `pass-${Math.random().toString(36).substring(2, 7)}`;
+
+    // 1. Create Vendor document
+    const newVendor = {
+      vendorId,
+      companyName: companyName.trim(),
+      ownerName: ownerName.trim(),
+      email: lowerEmail,
+      phone: phone.trim(),
+      status: 'pending',
+      createdAt: new Date().toISOString()
+    };
+    await setDoc(doc(db, 'vendors', vendorId), newVendor);
+
+    // 2. Create Auth Credentials in 'staff' collection
+    const vendorAuth = {
+      username: lowerEmail,
+      password: tempPassword,
+      role: 'vendor',
+      vendorId,
+      createdAt: new Date().toISOString()
+    };
+    await setDoc(authDocRef, vendorAuth);
+
+    return { 
+      success: true, 
+      message: 'Vendor registered successfully!', 
+      credentials: {
+        email: lowerEmail,
+        password: tempPassword,
+        companyName: companyName
+      }
+    };
+  } catch (err) {
+    console.error("Vendor registration error:", err);
+    return { success: false, message: 'Failed to complete registration.' };
+  }
+}
+
 export async function authenticateUser(username, password) {
   const user = username.toLowerCase().trim();
 
-  // Admin login check
+  // Platform admin check
   if (user === 'admin' && password === 'admin123') {
-    const session = { username: 'Admin', role: 'admin', loginTime: new Date().toISOString() };
+    const session = { 
+      username: 'Platform Admin', 
+      role: 'admin', 
+      vendorId: 'VND-PLATFORM', 
+      loginTime: new Date().toISOString() 
+    };
     localStorage.setItem(DB_KEYS.SESSION, JSON.stringify(session));
     return { success: true, role: 'admin', session };
   }
 
-  // Security staff check
+  // Tenant check (vendor or security staff)
   const staffDocRef = doc(db, 'staff', user);
   const staffSnap = await getDoc(staffDocRef);
 
   if (staffSnap.exists()) {
     const matched = staffSnap.data();
     if (matched.password === password) {
-      const session = { username: matched.username, role: 'staff', loginTime: new Date().toISOString() };
+      // Vendor status gating check
+      if (matched.role === 'vendor') {
+        const vendorSnap = await getDoc(doc(db, 'vendors', matched.vendorId));
+        if (vendorSnap.exists()) {
+          const vData = vendorSnap.data();
+          if (vData.status === 'pending') {
+            return { success: false, message: 'Your vendor profile is pending administrator approval.' };
+          } else if (vData.status === 'suspended') {
+            return { success: false, message: 'Your vendor account has been suspended by the platform administrator.' };
+          }
+        } else {
+          return { success: false, message: 'Vendor database record not found.' };
+        }
+      }
+
+      const session = { 
+        username: matched.username, 
+        role: matched.role || 'staff',
+        vendorId: matched.vendorId || 'VND-101',
+        eventId: matched.eventId || null,
+        loginTime: new Date().toISOString() 
+      };
       localStorage.setItem(DB_KEYS.SESSION, JSON.stringify(session));
-      return { success: true, role: 'staff', session };
+      return { success: true, role: session.role, session };
     }
   }
 
@@ -503,5 +671,56 @@ export async function invalidateTicket(ticketId) {
   } catch (err) {
     console.error("Failed to invalidate ticket:", err);
     return { success: false, message: 'Failed to invalidate ticket.' };
+  }
+}
+
+// Master Admin Platform Console Operations
+export async function getVendors() {
+  try {
+    const snap = await getDocs(collection(db, 'vendors'));
+    const list = snap.docs.map(doc => doc.data());
+    list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    return list;
+  } catch (err) {
+    console.error("Failed to fetch vendors:", err);
+    return [];
+  }
+}
+
+export async function updateVendorStatus(vendorId, status) {
+  try {
+    const vendorDocRef = doc(db, 'vendors', vendorId);
+    await updateDoc(vendorDocRef, { status });
+    return { success: true, message: `Vendor status updated to ${status}.` };
+  } catch (err) {
+    console.error("Failed to update vendor status:", err);
+    return { success: false, message: 'Failed to update vendor status.' };
+  }
+}
+
+export async function deleteVendor(vendorId) {
+  try {
+    // Delete vendor document
+    await deleteDoc(doc(db, 'vendors', vendorId));
+    // Delete auth in staff collection (matching the vendorId)
+    const staffQuery = query(collection(db, 'staff'), where('vendorId', '==', vendorId));
+    const staffSnap = await getDocs(staffQuery);
+    const deletePromises = staffSnap.docs.map(d => deleteDoc(d.ref));
+    await Promise.all(deletePromises);
+    return { success: true, message: 'Vendor deleted successfully.' };
+  } catch (err) {
+    console.error("Failed to delete vendor:", err);
+    return { success: false, message: 'Failed to delete vendor.' };
+  }
+}
+
+export async function getVendorEvents(vendorId) {
+  try {
+    const q = query(collection(db, 'events'), where('vendorId', '==', vendorId));
+    const snap = await getDocs(q);
+    return snap.docs.map(doc => doc.data());
+  } catch (err) {
+    console.error("Failed to fetch vendor events:", err);
+    return [];
   }
 }

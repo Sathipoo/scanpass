@@ -15,6 +15,7 @@
   --text-main: hsl(210, 40%, 98%);
   --text-muted: hsl(215, 25%, 72%);
   --text-dark: hsl(220, 40%, 8%);
+  --text-light: hsl(210, 40%, 98%);
 
   /* Neon Accents */
   --color-primary: hsl(245, 85%, 68%);        /* Neon Indigo */
@@ -1784,3 +1785,722 @@ input:checked + .switch-slider:before {
   color: var(--color-accent) !important;
   border: 1px solid rgba(6, 182, 212, 0.25) !important;
 }
+
+/* =========================================================================
+   11. MARKETING LANDING PAGE STYLING
+   ========================================================================= */
+.landing-hero-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 3rem;
+  padding: 4rem 1rem;
+  min-height: 70vh;
+  flex-wrap: wrap;
+}
+
+.landing-hero-text {
+  flex: 1.2;
+  min-width: 320px;
+}
+
+.hero-tagline {
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: var(--color-accent);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  background: rgba(6, 182, 212, 0.08);
+  padding: 0.45rem 1rem;
+  border-radius: 20px;
+  border: 1px solid rgba(6, 182, 212, 0.25);
+  display: inline-block;
+  margin-bottom: 1.5rem;
+}
+
+.hero-title {
+  font-size: 3.25rem;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -1.5px;
+  margin-bottom: 1.5rem;
+  color: var(--text-main);
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, var(--color-accent) 0%, var(--color-primary) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 15px rgba(6, 182, 212, 0.15));
+}
+
+.hero-description {
+  font-size: 1.1rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin-bottom: 2.5rem;
+  max-width: 580px;
+}
+
+.hero-cta-buttons {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.landing-hero-visual {
+  flex: 0.8;
+  min-width: 300px;
+  display: flex;
+  justify-content: center;
+  position: relative;
+}
+
+.visual-mockup-card {
+  width: 100%;
+  max-width: 380px;
+  height: 240px;
+  padding: 0;
+  border-radius: var(--radius-md);
+  background: rgba(10, 12, 22, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.8), var(--shadow-glow);
+  display: flex;
+  flex-direction: column;
+}
+
+.mockup-header {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.mockup-header .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.dot.red { background-color: var(--color-danger); }
+.dot.yellow { background-color: var(--color-warning); }
+.dot.green { background-color: var(--color-success); }
+
+.mockup-url {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-family: monospace;
+  margin-left: 0.75rem;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 0.15rem 0.6rem;
+  border-radius: 4px;
+}
+
+.mockup-body {
+  padding: 1.25rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.mockup-kpi {
+  display: flex;
+  justify-content: space-between;
+}
+
+.mockup-kpi-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.mockup-kpi-item .lbl {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.mockup-kpi-item .val {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--color-accent);
+}
+
+.mockup-chart-stub {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+  height: 80px;
+  margin-top: 1rem;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 0.5rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.02);
+}
+
+.chart-bar {
+  flex: 1;
+  background: linear-gradient(to top, var(--color-primary), var(--color-accent));
+  border-radius: 4px;
+  opacity: 0.75;
+  animation: heightPulse 3s ease-in-out infinite alternate;
+}
+
+.chart-bar:nth-child(2) { animation-delay: 0.5s; }
+.chart-bar:nth-child(3) { animation-delay: 1s; }
+.chart-bar:nth-child(4) { animation-delay: 1.5s; }
+
+/* Features Grid */
+.landing-features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.5rem;
+  padding: 4rem 1rem;
+}
+
+.feature-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  text-align: left;
+}
+
+.feature-icon {
+  font-size: 2.25rem;
+  margin-bottom: 0.5rem;
+  filter: drop-shadow(0 0 10px rgba(255,255,255,0.05));
+}
+
+.feature-card h3 {
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.feature-card p {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* Signup Card Section */
+.landing-signup-container {
+  display: flex;
+  justify-content: center;
+  padding: 4rem 1rem;
+}
+
+.signup-card {
+  width: 100%;
+  max-width: 580px;
+  background: radial-gradient(circle at top right, rgba(6, 182, 212, 0.08), transparent 70%), var(--card-bg);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.7);
+  border-top: 4px solid var(--color-accent);
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.signup-header {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.signup-icon {
+  font-size: 2.5rem;
+  filter: drop-shadow(0 0 10px var(--color-accent-glow));
+}
+
+.signup-title {
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: -0.75px;
+  background: linear-gradient(135deg, #ffffff 40%, var(--color-accent) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.signup-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.signup-error {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  color: var(--color-danger);
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.signup-footer-link {
+  margin-top: 1rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--card-border);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.link-btn {
+  background: transparent;
+  border: none;
+  color: var(--color-accent);
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+  transition: var(--transition-fast);
+}
+
+.link-btn:hover {
+  color: var(--text-main);
+}
+
+/* =========================================================================
+   12. EMAIL NOTIFICATION MOCKUP MODAL STYLING
+   ========================================================================= */
+.email-modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: rgba(4, 5, 10, 0.85);
+  backdrop-filter: blur(12px);
+  z-index: 300;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  animation: fadeIn 0.3s ease forwards;
+}
+
+.email-modal-overlay.show {
+  display: flex;
+}
+
+.email-mockup-card {
+  width: 100%;
+  max-width: 520px;
+  background: #0f1220;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 35px 70px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  padding: 0;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  animation: modalScaleUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.email-mockup-header {
+  background: #15192d;
+  padding: 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.email-header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.email-badge {
+  background: rgba(6, 182, 212, 0.12);
+  color: var(--color-accent);
+  border: 1px solid rgba(6, 182, 212, 0.25);
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 0.25rem 0.65rem;
+  border-radius: 20px;
+  letter-spacing: 0.5px;
+}
+
+.email-time {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.email-subject {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0.25rem 0;
+}
+
+.email-sender-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.email-sender strong, .email-receiver strong {
+  color: var(--text-main);
+}
+
+.email-mockup-body {
+  padding: 1.5rem;
+  font-size: 0.92rem;
+  color: var(--text-muted);
+  line-height: 1.55;
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+}
+
+.email-mockup-body p {
+  margin: 0;
+}
+
+.email-mockup-body strong {
+  color: var(--text-main);
+}
+
+.credentials-display-box {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-sm);
+  padding: 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin: 0.25rem 0;
+}
+
+.cred-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.cred-lbl {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.cred-val {
+  font-size: 0.95rem;
+  color: var(--color-accent);
+}
+
+.password-mask-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.password-mask-group code {
+  font-family: monospace;
+  font-weight: 700;
+  color: var(--color-success) !important;
+}
+
+.btn-copy-icon {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 0.2rem;
+  border-radius: 4px;
+  transition: var(--transition-fast);
+}
+
+.btn-copy-icon:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.warning-text {
+  font-size: 0.75rem;
+  color: var(--color-warning);
+  background: rgba(245, 158, 11, 0.05);
+  border: 1px solid rgba(245, 158, 11, 0.15);
+  padding: 0.65rem 0.85rem;
+  border-radius: 8px;
+}
+
+/* =========================================================================
+   13. REDESIGNED FULL-SCREEN SCANNER OVERLAYS
+   ========================================================================= */
+.modal-outcome-screen {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 50;
+  border-radius: inherit;
+  padding: 2.25rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  text-align: center;
+  transition: var(--transition-smooth);
+}
+
+.outcome-chime {
+  font-size: 5rem;
+  margin-top: 1rem;
+  animation: zoomBounce 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+.outcome-title {
+  font-size: 2.25rem;
+  font-weight: 800;
+  letter-spacing: -0.75px;
+  line-height: 1.15;
+  margin: 0.5rem 0;
+}
+
+.outcome-message {
+  font-size: 1.1rem;
+  font-weight: 600;
+  max-width: 320px;
+  line-height: 1.45;
+}
+
+.outcome-meta-card {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin: 1.5rem 0;
+}
+
+.outcome-meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+}
+
+.outcome-meta-label {
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 600;
+}
+
+.outcome-meta-value {
+  font-weight: 700;
+  color: #ffffff;
+}
+
+/* Specific Scanned Result State Colors & Gradients */
+.modal-outcome-screen.success {
+  background: radial-gradient(circle at center, rgba(16, 185, 129, 0.95), rgba(16, 185, 129, 0.85));
+  color: #ffffff;
+}
+
+.modal-outcome-screen.success .outcome-title {
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+}
+
+.modal-outcome-screen.error {
+  background: radial-gradient(circle at center, rgba(239, 68, 68, 0.95), rgba(239, 68, 68, 0.85));
+  color: #ffffff;
+}
+
+.modal-outcome-screen.mismatch {
+  background: radial-gradient(circle at center, rgba(245, 158, 11, 0.95), rgba(217, 119, 6, 0.85));
+  color: #ffffff;
+}
+
+.modal-outcome-screen.redeemed {
+  background: radial-gradient(circle at center, rgba(139, 92, 246, 0.95), rgba(109, 40, 217, 0.85));
+  color: #ffffff;
+}
+
+.modal-outcome-screen .btn-primary {
+  background: #ffffff;
+  color: var(--text-dark);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+  font-size: 1.05rem;
+  padding: 1rem 1.5rem;
+}
+
+.modal-outcome-screen .btn-primary:hover {
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+  transform: translateY(-1px);
+}
+
+/* Animations */
+@keyframes heightPulse {
+  0% { transform: scaleY(0.95); opacity: 0.7; }
+  100% { transform: scaleY(1.05); opacity: 0.9; }
+}
+
+@keyframes zoomBounce {
+  0% { transform: scale(0.3); opacity: 0; }
+  50% { transform: scale(1.1); }
+  70% { transform: scale(0.9); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes modalScaleUp {
+  0% { transform: scale(0.9) translateY(20px); opacity: 0; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+/* =========================================================================
+   14. SYSTEM UTILITY CLASSES & LIGHT THEME OVERRIDES
+   ========================================================================= */
+.hidden {
+  display: none !important;
+}
+
+/* Global Light Theme Token Definitions */
+body.light-theme {
+  --bg-primary: hsl(220, 25%, 95%);
+  --bg-secondary: hsl(220, 20%, 90%);
+  --bg-tertiary: hsl(220, 15%, 85%);
+  
+  --card-bg: rgba(255, 255, 255, 0.75);
+  --card-border: rgba(0, 0, 0, 0.08);
+  --card-glow: rgba(99, 102, 241, 0.05);
+
+  --text-main: hsl(220, 30%, 15%);
+  --text-muted: hsl(220, 15%, 45%);
+  --text-dark: hsl(220, 40%, 8%);
+  --text-light: hsl(220, 30%, 12%);
+  
+  --color-primary: hsl(245, 75%, 55%);
+  --color-primary-hover: hsl(245, 80%, 48%);
+  --color-primary-glow: rgba(99, 102, 241, 0.15);
+
+  --color-accent: hsl(188, 85%, 40%);
+  --color-accent-hover: hsl(188, 90%, 35%);
+  --color-accent-glow: rgba(6, 182, 212, 0.15);
+
+  --shadow-lg: 0 16px 40px -10px rgba(0, 0, 0, 0.08);
+  --shadow-glow: 0 0 20px rgba(99, 102, 241, 0.05);
+}
+
+body.light-theme {
+  background-color: var(--bg-primary);
+  background-image: 
+    radial-gradient(at 10% 15%, rgba(99, 102, 241, 0.08) 0px, transparent 40%),
+    radial-gradient(at 90% 85%, rgba(6, 182, 212, 0.06) 0px, transparent 45%);
+  color: var(--text-main);
+}
+
+body.light-theme .app-header {
+  background: rgba(255, 255, 255, 0.8);
+  border-color: var(--card-border);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.05);
+}
+
+body.light-theme .header-nav {
+  background: rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+body.light-theme .nav-link {
+  color: var(--text-muted);
+}
+
+body.light-theme .nav-link:hover {
+  color: var(--text-main);
+  background: rgba(0, 0, 0, 0.03);
+}
+
+body.light-theme .nav-link.active {
+  background: linear-gradient(135deg, var(--color-primary), hsl(245, 75%, 50%));
+  color: #ffffff;
+}
+
+body.light-theme .form-control {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(0, 0, 0, 0.15);
+  color: var(--text-main);
+}
+
+body.light-theme .form-control::placeholder {
+  color: rgba(0, 0, 0, 0.4);
+}
+
+body.light-theme .form-control:focus {
+  background: #ffffff;
+  border-color: var(--color-primary);
+}
+
+body.light-theme .tickets-table th {
+  background: rgba(0, 0, 0, 0.02);
+  border-bottom-color: rgba(0, 0, 0, 0.08);
+}
+
+body.light-theme .tickets-table td {
+  border-bottom-color: rgba(0, 0, 0, 0.05);
+}
+
+body.light-theme .tickets-table tr:hover td {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+body.light-theme .mockup-body {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+body.light-theme .email-mockup-card {
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+}
+
+body.light-theme .email-mockup-header {
+  background: #f8fafc;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+body.light-theme .email-subject {
+  color: var(--text-main);
+}
+
+body.light-theme .credentials-display-box {
+  background: rgba(0, 0, 0, 0.03);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+body.light-theme .password-mask-group {
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+body.light-theme .logo-text {
+  background: linear-gradient(135deg, var(--text-main) 40%, var(--color-primary) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Fix collapse of modal when showing full-screen outcome overlay */
+.validation-modal .modal-content.has-outcome {
+  min-height: 520px;
+}
+
+/* Fix toast notification text visibility in light theme */
+body.light-theme .toast {
+  background: rgba(255, 255, 255, 0.98);
+  border-color: rgba(0, 0, 0, 0.08);
+  color: var(--text-main);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
+}
+
